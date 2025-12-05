@@ -49,7 +49,8 @@ async function fetchWithFallback(path) {
  */
 export async function searchMovies(query, limit = 10) {
     try {
-        const searchPath = `/category-search/${encodeURIComponent(query)}/Movies/1/`;
+        // Search all categories (not just Movies) to include anime, series
+        const searchPath = `/search/${encodeURIComponent(query)}/1/`;
         const html = await fetchWithFallback(searchPath);
         const $ = cheerio.load(html);
 
