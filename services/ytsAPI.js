@@ -9,7 +9,27 @@ import https from 'https';
 // Use Cloudflare DNS (1.1.1.1) and Google DNS (8.8.8.8)
 dns.setServers(['1.1.1.1', '8.8.8.8', '8.8.4.4']);
 
-const YTS_API = 'https://yts.mx/api/v2';
+// YTS domain mirrors - try multiple if primary fails
+const YTS_DOMAINS = [
+    'https://yts.mx',
+    'https://yts.lt',
+    'https://yts.am',
+    'https://yts.pm',
+    'https://yts.torrentbay.st',
+    'https://yts.unblockit.click'
+];
+
+let currentDomainIndex = 0;
+
+function getYtsApiUrl() {
+    return `${YTS_DOMAINS[currentDomainIndex]}/api/v2`;
+}
+
+function rotateToNextDomain() {
+    currentDomainIndex = (currentDomainIndex + 1) % YTS_DOMAINS.length;
+    console.log(`🔄 Switching to YTS domain: ${YTS_DOMAINS[currentDomainIndex]}`);
+    return currentDomainIndex !== 0; // Return false when we've tried all domains
+}
 
 // Custom HTTPS agent with longer timeout
 const httpsAgent = new https.Agent({
@@ -56,31 +76,50 @@ function createClient() {
 }
 
 /**
- * Fetch from YTS API with retries
+ * Fetch from YTS API with retries and domain fallback
  */
 async function fetchYTS(endpoint) {
     const client = createClient();
-    const maxRetries = 3;
+    const maxRetriesPerDomain = 2;
+    const startingDomainIndex = currentDomainIndex;
 
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            console.log(`🔍 YTS request (attempt ${i + 1})...`);
-            const response = await client.get(`${YTS_API}${endpoint}`);
+    // Try all domains
+    do {
+        const apiUrl = getYtsApiUrl();
 
-            if (response.data?.status === 'ok') {
-                console.log('✅ YTS fetch successful!');
-                return response.data;
-            }
-        } catch (error) {
-            console.log(`❌ Attempt ${i + 1} failed: ${error.message}`);
+        for (let i = 0; i < maxRetriesPerDomain; i++) {
+            try {
+                console.log(`🔍 YTS request to ${YTS_DOMAINS[currentDomainIndex]} (attempt ${i + 1})...`);
+                const response = await client.get(`${apiUrl}${endpoint}`);
 
-            // Wait before retry
-            if (i < maxRetries - 1) {
-                await new Promise(r => setTimeout(r, 1000));
+                if (response.data?.status === 'ok') {
+                    console.log(`✅ YTS fetch successful from ${YTS_DOMAINS[currentDomainIndex]}!`);
+                    return response.data;
+                }
+            } catch (error) {
+                const isDnsError = error.message.includes('ENOTFOUND') ||
+                    error.message.includes('ECONNREFUSED') ||
+                    error.message.includes('ETIMEDOUT');
+
+                console.log(`❌ Attempt ${i + 1} failed: ${error.message}`);
+
+                // If DNS error, immediately try next domain
+                if (isDnsError) {
+                    console.log(`🌐 DNS/Connection error, trying next domain...`);
+                    break;
+                }
+
+                // Wait before retry on same domain
+                if (i < maxRetriesPerDomain - 1) {
+                    await new Promise(r => setTimeout(r, 500));
+                }
             }
         }
-    }
+    } while (rotateToNextDomain() || currentDomainIndex !== startingDomainIndex);
 
+    // Reset to first domain for next request
+    currentDomainIndex = 0;
+    console.log('❌ All YTS domains failed');
     return null;
 }
 
