@@ -7,9 +7,13 @@ import db from '../database/sqlite.js';
 import cache, { CacheKeys, TTL } from '../services/cache.js';
 import yts from '../services/ytsAPI.js';
 import tmdb from '../services/tmdbAPI.js';
+import seedr from '../services/seedrAPI.js';
 import rateLimiter from '../utils/rateLimiter.js';
 import { t } from '../utils/languages.js';
 import { escapeMarkdown } from '../utils/formatter.js';
+
+// Check if Seedr is configured
+const SEEDR_ENABLED = !!(process.env.SEEDR_USERNAME && process.env.SEEDR_PASSWORD);
 
 const searchResults = new Map();
 
@@ -237,7 +241,7 @@ export async function handleMovieSelect(bot, query, indexStr) {
 }
 
 /**
- * Handle torrent download - send magnet link
+ * Handle torrent download - use Seedr for direct file download or fallback to magnet
  */
 export async function handleTorrentSelect(bot, query, movieIndex, torrentIndex) {
     const chatId = query.message.chat.id;
@@ -246,7 +250,6 @@ export async function handleTorrentSelect(bot, query, movieIndex, torrentIndex) 
     try {
         const results = searchResults.get(`${userId}:results`);
         console.log(`Torrent select: user=${userId}, movieIndex=${movieIndex}, torrentIndex=${torrentIndex}`);
-        console.log(`Results available: ${results ? results.length : 0}`);
 
         if (!results) {
             await bot.answerCallbackQuery(query.id, { text: 'نتایج منقضی شده. دوباره جستجو کنید.', show_alert: true });
@@ -254,9 +257,6 @@ export async function handleTorrentSelect(bot, query, movieIndex, torrentIndex) 
         }
 
         const movie = results[parseInt(movieIndex)];
-        console.log(`Movie found: ${movie ? movie.title : 'null'}`);
-        console.log(`Torrents available: ${movie?.torrents?.length || 0}`);
-
         if (!movie) {
             await bot.answerCallbackQuery(query.id, { text: 'فیلم پیدا نشد. دوباره جستجو کنید.', show_alert: true });
             return;
@@ -268,43 +268,153 @@ export async function handleTorrentSelect(bot, query, movieIndex, torrentIndex) 
         }
 
         const torrent = movie.torrents[parseInt(torrentIndex)];
-
-        if (!torrent) {
-            await bot.answerCallbackQuery(query.id, { text: 'این کیفیت موجود نیست', show_alert: true });
+        if (!torrent || !torrent.magnetLink) {
+            await bot.answerCallbackQuery(query.id, { text: 'لینک موجود نیست', show_alert: true });
             return;
         }
-
-        if (!torrent.magnetLink) {
-            await bot.answerCallbackQuery(query.id, { text: 'لینک مگنت موجود نیست', show_alert: true });
-            return;
-        }
-
-        console.log(`Sending magnet for: ${movie.title} - ${torrent.quality}`);
-
-        // Send magnet link (Telegram doesn't allow magnet: URLs in buttons, so just send as text)
-        const magnetText =
-            `🎬 *${escapeMarkdown(movie.title)}*\n` +
-            `📦 کیفیت: ${torrent.quality} | حجم: ${torrent.size}\n\n` +
-            `🧲 *لینک مگنت:*\n` +
-            `_(روی لینک زیر بزنید تا کپی شود)_\n\n` +
-            `\`${torrent.magnetLink}\`\n\n` +
-            `📱 *راهنما:*\n` +
-            `1️⃣ روی لینک بالا بزنید تا کپی بشه\n` +
-            `2️⃣ در برنامه تورنت (مثل uTorrent) پیست کنید\n` +
-            `3️⃣ دانلود شروع میشه! 🎉`;
-
-        await bot.sendMessage(chatId, magnetText, {
-            parse_mode: 'Markdown'
-        });
 
         await bot.answerCallbackQuery(query.id);
+
+        // If Seedr is enabled, use direct download
+        if (SEEDR_ENABLED) {
+            await handleSeedrDownload(bot, chatId, movie, torrent);
+        } else {
+            // Fallback to magnet link
+            await sendMagnetLink(bot, chatId, movie, torrent);
+        }
     } catch (error) {
         console.error('Torrent select error:', error);
-        await bot.answerCallbackQuery(query.id, {
-            text: `خطا: ${error.message}`,
-            show_alert: true
-        });
+        await bot.sendMessage(chatId, `❌ خطا: ${error.message}`);
     }
+}
+
+/**
+ * Handle download via Seedr - sends actual video file
+ */
+async function handleSeedrDownload(bot, chatId, movie, torrent) {
+    // Send progress message
+    const progressMsg = await bot.sendMessage(chatId,
+        `🎬 *${escapeMarkdown(movie.title)}*\n` +
+        `📦 کیفیت: ${torrent.quality} | حجم: ${torrent.size}\n\n` +
+        `⏳ *در حال آماده‌سازی دانلود...*\n` +
+        `_لطفاً صبر کنید، این ممکنه چند دقیقه طول بکشه_`,
+        { parse_mode: 'Markdown' }
+    );
+
+    try {
+        console.log(`Starting Seedr download for: ${movie.title} - ${torrent.quality}`);
+
+        // Progress update callback
+        let lastProgress = -1;
+        const updateProgress = async (progress, name) => {
+            if (progress !== lastProgress && progress % 20 === 0) {
+                lastProgress = progress;
+                try {
+                    await bot.editMessageText(
+                        `🎬 *${escapeMarkdown(movie.title)}*\n` +
+                        `📦 کیفیت: ${torrent.quality}\n\n` +
+                        `📥 *در حال دانلود:* ${progress}%\n` +
+                        `${'█'.repeat(Math.floor(progress / 10))}${'░'.repeat(10 - Math.floor(progress / 10))}`,
+                        {
+                            chat_id: chatId,
+                            message_id: progressMsg.message_id,
+                            parse_mode: 'Markdown'
+                        }
+                    );
+                } catch (e) { }
+            }
+        };
+
+        // Download via Seedr
+        const result = await seedr.downloadTorrent(torrent.magnetLink, updateProgress);
+
+        // Update message
+        await bot.editMessageText(
+            `🎬 *${escapeMarkdown(movie.title)}*\n` +
+            `📦 ${torrent.quality}\n\n` +
+            `📤 *در حال ارسال فایل...*`,
+            {
+                chat_id: chatId,
+                message_id: progressMsg.message_id,
+                parse_mode: 'Markdown'
+            }
+        );
+
+        // Check file size (Telegram limit is 2GB for bots)
+        const fileSizeGB = result.file.size / (1024 * 1024 * 1024);
+        if (fileSizeGB > 2) {
+            // File too large, send download link instead
+            await bot.editMessageText(
+                `🎬 *${escapeMarkdown(movie.title)}*\n` +
+                `📦 ${torrent.quality} | ${result.file.name}\n\n` +
+                `⚠️ *فایل بزرگتر از ۲ گیگ است*\n\n` +
+                `🔗 *لینک دانلود مستقیم:*\n${result.url}\n\n` +
+                `⏰ _این لینک تا ۱۰ دقیقه معتبر است_`,
+                {
+                    chat_id: chatId,
+                    message_id: progressMsg.message_id,
+                    parse_mode: 'Markdown'
+                }
+            );
+        } else {
+            // Send video file directly
+            await bot.sendVideo(chatId, result.url, {
+                caption: `🎬 ${movie.title} (${movie.year})\n📦 ${torrent.quality} | ${torrent.size}`,
+                supports_streaming: true
+            });
+
+            // Delete progress message
+            try {
+                await bot.deleteMessage(chatId, progressMsg.message_id);
+            } catch (e) { }
+        }
+
+        // Cleanup Seedr after 120 seconds
+        setTimeout(async () => {
+            try {
+                await result.cleanup();
+                console.log('✅ Seedr cleanup complete after 120s');
+            } catch (e) {
+                console.error('Cleanup error:', e.message);
+            }
+        }, 120000);
+
+    } catch (error) {
+        console.error('Seedr download error:', error);
+
+        // Edit progress message to show error
+        await bot.editMessageText(
+            `❌ *خطا در دانلود*\n\n` +
+            `${error.message}\n\n` +
+            `🔄 _در حال ارسال لینک مگنت به عنوان جایگزین..._`,
+            {
+                chat_id: chatId,
+                message_id: progressMsg.message_id,
+                parse_mode: 'Markdown'
+            }
+        );
+
+        // Fallback to magnet
+        await sendMagnetLink(bot, chatId, movie, torrent);
+    }
+}
+
+/**
+ * Send magnet link (fallback when Seedr fails or is not configured)
+ */
+async function sendMagnetLink(bot, chatId, movie, torrent) {
+    const magnetText =
+        `🎬 *${escapeMarkdown(movie.title)}*\n` +
+        `📦 کیفیت: ${torrent.quality} | حجم: ${torrent.size}\n\n` +
+        `🧲 *لینک مگنت:*\n` +
+        `_(روی لینک زیر بزنید تا کپی شود)_\n\n` +
+        `\`${torrent.magnetLink}\`\n\n` +
+        `📱 *راهنما:*\n` +
+        `1️⃣ روی لینک بالا بزنید تا کپی بشه\n` +
+        `2️⃣ در برنامه تورنت پیست کنید\n` +
+        `3️⃣ دانلود شروع میشه! 🎉`;
+
+    await bot.sendMessage(chatId, magnetText, { parse_mode: 'Markdown' });
 }
 
 /**
