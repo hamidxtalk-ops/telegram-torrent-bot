@@ -243,43 +243,72 @@ export async function handleTorrentSelect(bot, query, movieIndex, torrentIndex) 
     const chatId = query.message.chat.id;
     const userId = query.from.id;
 
-    const results = searchResults.get(`${userId}:results`);
+    try {
+        const results = searchResults.get(`${userId}:results`);
+        console.log(`Torrent select: user=${userId}, movieIndex=${movieIndex}, torrentIndex=${torrentIndex}`);
+        console.log(`Results available: ${results ? results.length : 0}`);
 
-    if (!results) {
-        await bot.answerCallbackQuery(query.id, { text: 'نتایج منقضی شده', show_alert: true });
-        return;
+        if (!results) {
+            await bot.answerCallbackQuery(query.id, { text: 'نتایج منقضی شده. دوباره جستجو کنید.', show_alert: true });
+            return;
+        }
+
+        const movie = results[parseInt(movieIndex)];
+        console.log(`Movie found: ${movie ? movie.title : 'null'}`);
+        console.log(`Torrents available: ${movie?.torrents?.length || 0}`);
+
+        if (!movie) {
+            await bot.answerCallbackQuery(query.id, { text: 'فیلم پیدا نشد. دوباره جستجو کنید.', show_alert: true });
+            return;
+        }
+
+        if (!movie.torrents || movie.torrents.length === 0) {
+            await bot.answerCallbackQuery(query.id, { text: 'لینک تورنت موجود نیست', show_alert: true });
+            return;
+        }
+
+        const torrent = movie.torrents[parseInt(torrentIndex)];
+
+        if (!torrent) {
+            await bot.answerCallbackQuery(query.id, { text: 'این کیفیت موجود نیست', show_alert: true });
+            return;
+        }
+
+        if (!torrent.magnetLink) {
+            await bot.answerCallbackQuery(query.id, { text: 'لینک مگنت موجود نیست', show_alert: true });
+            return;
+        }
+
+        console.log(`Sending magnet for: ${movie.title} - ${torrent.quality}`);
+
+        // Send magnet link
+        const magnetText =
+            `🎬 *${escapeMarkdown(movie.title)}*\n` +
+            `📦 کیفیت: ${torrent.quality} | حجم: ${torrent.size}\n\n` +
+            `🧲 *لینک مگنت:*\n\n` +
+            `\`${torrent.magnetLink}\`\n\n` +
+            `📱 *راهنما:*\n` +
+            `1️⃣ روی لینک بالا بزنید تا کپی شود\n` +
+            `2️⃣ در برنامه تورنت پیست کنید\n` +
+            `3️⃣ دانلود شروع میشه!`;
+
+        const keyboard = [
+            [{ text: '🧲 باز کردن در تورنت', url: torrent.magnetLink }]
+        ];
+
+        await bot.sendMessage(chatId, magnetText, {
+            parse_mode: 'Markdown',
+            reply_markup: { inline_keyboard: keyboard }
+        });
+
+        await bot.answerCallbackQuery(query.id);
+    } catch (error) {
+        console.error('Torrent select error:', error);
+        await bot.answerCallbackQuery(query.id, {
+            text: `خطا: ${error.message}`,
+            show_alert: true
+        });
     }
-
-    const movie = results[parseInt(movieIndex)];
-
-    if (!movie || !movie.torrents?.[parseInt(torrentIndex)]) {
-        await bot.answerCallbackQuery(query.id, { text: 'لینک پیدا نشد', show_alert: true });
-        return;
-    }
-
-    const torrent = movie.torrents[parseInt(torrentIndex)];
-
-    // Send magnet link
-    const magnetText =
-        `🎬 *${escapeMarkdown(movie.title)}*\n` +
-        `📦 کیفیت: ${torrent.quality} | حجم: ${torrent.size}\n\n` +
-        `🧲 *لینک مگنت:*\n\n` +
-        `\`${torrent.magnetLink}\`\n\n` +
-        `📱 *راهنما:*\n` +
-        `1️⃣ روی لینک بالا بزنید تا کپی شود\n` +
-        `2️⃣ در برنامه تورنت پیست کنید\n` +
-        `3️⃣ دانلود شروع میشه!`;
-
-    const keyboard = [
-        [{ text: '🧲 باز کردن در تورنت', url: torrent.magnetLink }]
-    ];
-
-    await bot.sendMessage(chatId, magnetText, {
-        parse_mode: 'Markdown',
-        reply_markup: { inline_keyboard: keyboard }
-    });
-
-    await bot.answerCallbackQuery(query.id);
 }
 
 /**
