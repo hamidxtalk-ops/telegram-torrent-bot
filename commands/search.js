@@ -281,24 +281,20 @@ export async function handleTorrentSelect(bot, query, movieIndex, torrentIndex) 
 
         console.log(`Sending magnet for: ${movie.title} - ${torrent.quality}`);
 
-        // Send magnet link
+        // Send magnet link (Telegram doesn't allow magnet: URLs in buttons, so just send as text)
         const magnetText =
             `🎬 *${escapeMarkdown(movie.title)}*\n` +
             `📦 کیفیت: ${torrent.quality} | حجم: ${torrent.size}\n\n` +
-            `🧲 *لینک مگنت:*\n\n` +
+            `🧲 *لینک مگنت:*\n` +
+            `_(روی لینک زیر بزنید تا کپی شود)_\n\n` +
             `\`${torrent.magnetLink}\`\n\n` +
             `📱 *راهنما:*\n` +
-            `1️⃣ روی لینک بالا بزنید تا کپی شود\n` +
-            `2️⃣ در برنامه تورنت پیست کنید\n` +
-            `3️⃣ دانلود شروع میشه!`;
-
-        const keyboard = [
-            [{ text: '🧲 باز کردن در تورنت', url: torrent.magnetLink }]
-        ];
+            `1️⃣ روی لینک بالا بزنید تا کپی بشه\n` +
+            `2️⃣ در برنامه تورنت (مثل uTorrent) پیست کنید\n` +
+            `3️⃣ دانلود شروع میشه! 🎉`;
 
         await bot.sendMessage(chatId, magnetText, {
-            parse_mode: 'Markdown',
-            reply_markup: { inline_keyboard: keyboard }
+            parse_mode: 'Markdown'
         });
 
         await bot.answerCallbackQuery(query.id);
