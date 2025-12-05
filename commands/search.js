@@ -161,9 +161,8 @@ async function sendMovieWithDownloads(bot, chatId, movie, lang, movieIndex = 0) 
             text += `📦 *${quality}* - ${size} - 🌱${seeds}\n`;
         });
     } else {
-        text += '⚠️ _لینک دانلود موجود نیست._\n';
-        text += '_ISP شما سایت‌های تورنت را مسدود کرده._\n';
-        text += '_برای دانلود از VPN استفاده کنید یا ربات را روی سرور خارجی اجرا کنید._\n';
+        text += '⚠️ _این فیلم در YTS موجود نیست._\n';
+        text += '_میتونید اسم فیلم رو مستقیم سرچ کنید تا نتایج بهتر ببینید._\n';
     }
 
     // Create buttons
