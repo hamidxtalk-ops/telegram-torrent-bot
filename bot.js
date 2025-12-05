@@ -23,6 +23,38 @@ server.listen(PORT, () => {
     console.log(`🌐 Health check server running on port ${PORT}`);
 });
 
+// Self-ping to keep Render free tier instance alive
+const RENDER_URL = process.env.RENDER_EXTERNAL_URL || process.env.RENDER_URL;
+const PING_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+function selfPing() {
+    if (!RENDER_URL) {
+        console.log('⚠️ No RENDER_URL found, self-ping disabled');
+        return;
+    }
+
+    const pingUrl = `${RENDER_URL}/health`;
+
+    fetch(pingUrl)
+        .then(res => {
+            if (res.ok) {
+                console.log(`🏓 Self-ping successful: ${new Date().toISOString()}`);
+            } else {
+                console.log(`⚠️ Self-ping returned status: ${res.status}`);
+            }
+        })
+        .catch(err => {
+            console.log(`❌ Self-ping failed: ${err.message}`);
+        });
+}
+
+// Start self-ping after 1 minute, then every 5 minutes
+setTimeout(() => {
+    selfPing(); // First ping after 1 minute
+    setInterval(selfPing, PING_INTERVAL);
+    console.log('🔄 Self-ping service started (every 5 minutes)');
+}, 60 * 1000);
+
 // Import commands
 import { handleStart, handleAcceptTerms, handleLanguageSelect, handleLanguageChange } from './commands/start.js';
 import {
