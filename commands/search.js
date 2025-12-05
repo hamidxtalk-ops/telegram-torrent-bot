@@ -185,11 +185,13 @@ async function sendMovieWithDownloads(bot, chatId, movie, lang, movieIndex = 0) 
             const quality = torrent.quality || '720p';
             const size = torrent.size || 'N/A';
             const seeds = torrent.seeds || 0;
-            text += `📦 *${quality}* - ${size} - 🌱${seeds}\n`;
+            const source = torrent.source ? ` (${torrent.source})` : '';
+            text += `📦 *${quality}* - ${size} - 🌱${seeds}${source}\n`;
         });
     } else {
-        text += '⚠️ _این فیلم در YTS موجود نیست._\n';
-        text += '_میتونید اسم فیلم رو مستقیم سرچ کنید تا نتایج بهتر ببینید._\n';
+        text += '⚠️ _تورنت این فیلم پیدا نشد._\n';
+        text += '_منابع چک شده: YTS, 1337x, TPB, TorrentGalaxy, LimeTorrents_\n\n';
+        text += '💡 *پیشنهاد:* دکمه "جستجوی مستقیم" رو بزنید\n';
     }
 
     // Create buttons
@@ -204,6 +206,11 @@ async function sendMovieWithDownloads(bot, chatId, movie, lang, movieIndex = 0) 
                 callback_data: `get:${movieIndex}:${i}`
             }]);
         });
+    } else {
+        // Add direct search button when no torrents found
+        const searchQuery = encodeURIComponent(movie.title + (movie.year ? ` ${movie.year}` : ''));
+        keyboard.push([{ text: '🔍 جستجوی مستقیم در 1337x', url: `https://1337x.to/search/${searchQuery}/1/` }]);
+        keyboard.push([{ text: '🔍 جستجوی مستقیم در TorrentGalaxy', url: `https://torrentgalaxy.to/torrents.php?search=${searchQuery}` }]);
     }
 
     // Add subtitle button
