@@ -8,6 +8,7 @@ import cache, { CacheKeys, TTL } from '../services/cache.js';
 import yts from '../services/ytsAPI.js';
 import tmdb from '../services/tmdbAPI.js';
 import seedr from '../services/seedrAPI.js';
+import scraper1337x from '../services/scraper1337x.js';
 import rateLimiter from '../utils/rateLimiter.js';
 import { t } from '../utils/languages.js';
 import { escapeMarkdown } from '../utils/formatter.js';
@@ -58,21 +59,41 @@ export async function handleSearch(bot, msg, query) {
             console.log('Searching YTS...');
             results = await yts.searchMovies(query, 10);
 
+            // If YTS has no results, try 1337x
             if (!results || results.length === 0) {
-                console.log('YTS unavailable, trying TMDb...');
+                console.log('YTS empty, trying 1337x...');
+                try {
+                    const x1337Results = await scraper1337x.searchWithMagnets(query, 8);
+                    if (x1337Results && x1337Results.length > 0) {
+                        results = scraper1337x.groupByMovie(x1337Results);
+                        results = results.map((movie, index) => ({
+                            ...movie,
+                            localId: index,
+                            source: '1337x'
+                        }));
+                        console.log(`1337x: Found ${results.length} movies`);
+                    }
+                } catch (e) {
+                    console.log('1337x failed:', e.message);
+                }
+            }
+
+            // If still no results, try TMDb for movie info
+            if (!results || results.length === 0) {
+                console.log('Trying TMDb for info...');
                 const tmdbResults = await tmdb.searchMovies(query);
 
                 if (tmdbResults.length > 0) {
                     results = tmdbResults.map((movie, index) => ({
                         ...movie,
-                        localId: index, // Add local index for reliable lookup
+                        localId: index,
                         synopsis: movie.overview || '',
                         torrents: [],
                         source: 'tmdb'
                     }));
                 }
             } else {
-                // Add local index to YTS results too
+                // Add local index to results
                 results = results.map((movie, index) => ({
                     ...movie,
                     localId: index
@@ -232,16 +253,17 @@ export async function handleMovieSelect(bot, query, indexStr) {
 
     console.log(`User ${userId} selected movie: ${movie.title}`);
 
-    // If movie has no real torrents (from TMDb/Trending), try to fetch from YTS
+    // If movie has no real torrents (from TMDb/Trending), try to fetch from YTS or 1337x
     if (!movie.torrents || movie.torrents.length === 0 || movie.torrents[0]?.isSearchLink) {
         await bot.answerCallbackQuery(query.id, { text: '⏳ در حال یافتن لینک دانلود...' });
 
         try {
-            console.log(`Fetching YTS torrents for: ${movie.title}`);
-            const ytsMovies = await yts.searchMovies(movie.title, 3);
+            console.log(`Fetching torrents for: ${movie.title}`);
 
-            // Find best match by title/year
+            // Try YTS first
+            const ytsMovies = await yts.searchMovies(movie.title, 3);
             let matchedMovie = null;
+
             for (const ytsMovie of ytsMovies) {
                 if (ytsMovie.year === movie.year ||
                     ytsMovie.title.toLowerCase() === movie.title.toLowerCase()) {
@@ -249,28 +271,32 @@ export async function handleMovieSelect(bot, query, indexStr) {
                     break;
                 }
             }
-
-            // Use first result if no exact match
             if (!matchedMovie && ytsMovies.length > 0) {
                 matchedMovie = ytsMovies[0];
             }
 
             if (matchedMovie && matchedMovie.torrents && matchedMovie.torrents.length > 0) {
-                // Merge YTS data with TMDb data
-                movie = {
-                    ...movie,
-                    torrents: matchedMovie.torrents,
-                    source: 'yts'
-                };
-                // Update in results
+                movie = { ...movie, torrents: matchedMovie.torrents, source: 'yts' };
                 results[index] = movie;
                 searchResults.set(`${userId}:results`, results);
-                console.log(`Found ${movie.torrents.length} torrents for ${movie.title}`);
+                console.log(`YTS: Found ${movie.torrents.length} torrents`);
             } else {
-                console.log(`No YTS torrents found for ${movie.title}`);
+                // YTS failed, try 1337x
+                console.log('YTS empty, trying 1337x...');
+                const x1337Results = await scraper1337x.searchWithMagnets(movie.title, 5);
+
+                if (x1337Results && x1337Results.length > 0) {
+                    const grouped = scraper1337x.groupByMovie(x1337Results);
+                    if (grouped.length > 0 && grouped[0].torrents.length > 0) {
+                        movie = { ...movie, torrents: grouped[0].torrents, source: '1337x' };
+                        results[index] = movie;
+                        searchResults.set(`${userId}:results`, results);
+                        console.log(`1337x: Found ${movie.torrents.length} torrents`);
+                    }
+                }
             }
         } catch (error) {
-            console.error('Failed to fetch YTS torrents:', error.message);
+            console.error('Failed to fetch torrents:', error.message);
         }
     } else {
         await bot.answerCallbackQuery(query.id);
