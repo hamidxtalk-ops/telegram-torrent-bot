@@ -15,7 +15,8 @@ import { escapeMarkdown } from '../utils/formatter.js';
 // Check if Seedr is configured
 const SEEDR_ENABLED = !!(process.env.SEEDR_USERNAME && process.env.SEEDR_PASSWORD);
 
-const searchResults = new Map();
+// Shared results storage - also used by browse.js
+export const searchResults = new Map();
 
 /**
  * Handle /search command
@@ -220,7 +221,7 @@ export async function handleMovieSelect(bot, query, indexStr) {
     }
 
     const index = parseInt(indexStr);
-    const movie = results[index];
+    let movie = results[index];
 
     if (!movie) {
         await bot.answerCallbackQuery(query.id, {
@@ -232,12 +233,55 @@ export async function handleMovieSelect(bot, query, indexStr) {
 
     console.log(`User ${userId} selected movie: ${movie.title}`);
 
+    // If movie has no real torrents (from TMDb/Trending), try to fetch from YTS
+    if (!movie.torrents || movie.torrents.length === 0 || movie.torrents[0]?.isSearchLink) {
+        await bot.answerCallbackQuery(query.id, { text: '⏳ در حال یافتن لینک دانلود...' });
+
+        try {
+            console.log(`Fetching YTS torrents for: ${movie.title}`);
+            const ytsMovies = await yts.searchMovies(movie.title, 3);
+
+            // Find best match by title/year
+            let matchedMovie = null;
+            for (const ytsMovie of ytsMovies) {
+                if (ytsMovie.year === movie.year ||
+                    ytsMovie.title.toLowerCase() === movie.title.toLowerCase()) {
+                    matchedMovie = ytsMovie;
+                    break;
+                }
+            }
+
+            // Use first result if no exact match
+            if (!matchedMovie && ytsMovies.length > 0) {
+                matchedMovie = ytsMovies[0];
+            }
+
+            if (matchedMovie && matchedMovie.torrents && matchedMovie.torrents.length > 0) {
+                // Merge YTS data with TMDb data
+                movie = {
+                    ...movie,
+                    torrents: matchedMovie.torrents,
+                    source: 'yts'
+                };
+                // Update in results
+                results[index] = movie;
+                searchResults.set(`${userId}:results`, results);
+                console.log(`Found ${movie.torrents.length} torrents for ${movie.title}`);
+            } else {
+                console.log(`No YTS torrents found for ${movie.title}`);
+            }
+        } catch (error) {
+            console.error('Failed to fetch YTS torrents:', error.message);
+        }
+    } else {
+        await bot.answerCallbackQuery(query.id);
+    }
+
     try {
         await bot.deleteMessage(chatId, query.message.message_id);
     } catch (e) { }
 
     await sendMovieWithDownloads(bot, chatId, movie, lang, index);
-    await bot.answerCallbackQuery(query.id);
 }
 
 /**

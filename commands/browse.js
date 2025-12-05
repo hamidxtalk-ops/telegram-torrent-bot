@@ -6,11 +6,10 @@
 import db from '../database/sqlite.js';
 import cache, { CacheKeys, TTL } from '../services/cache.js';
 import tmdb, { GENRE_MAP } from '../services/tmdbAPI.js';
+import yts from '../services/ytsAPI.js';
 import { t } from '../utils/languages.js';
 import { formatMovieList, formatSearchKeyboard, escapeMarkdown } from '../utils/formatter.js';
-
-// Store browse results for pagination
-const browseResults = new Map();
+import { searchResults } from './search.js';
 
 /**
  * Create search torrents for movies
@@ -85,8 +84,8 @@ export async function handleTrending(bot, msg) {
             return;
         }
 
-        // Store for pagination
-        browseResults.set(`${userId}:trending`, movies);
+        // Store for movie selection (using same format as search)
+        searchResults.set(`${userId}:results`, movies);
 
         const { text } = formatMovieList(movies, t(lang, 'trendingTitle'));
         const keyboard = formatSearchKeyboard(movies, 0);
@@ -187,8 +186,8 @@ async function fetchGenreMovies(bot, chatId, userId, genre, lang) {
             return;
         }
 
-        // Store for pagination
-        browseResults.set(`${userId}:genre:${genre}`, movies);
+        // Store for movie selection (using same format as search)
+        searchResults.set(`${userId}:results`, movies);
 
         const genreLabel = t(lang, `genres.${genre}`) || genre;
         const { text } = formatMovieList(movies, `${genreLabel} Movies`);
@@ -263,7 +262,7 @@ export async function handleTrendingPeriod(bot, query, period) {
             return;
         }
 
-        browseResults.set(`${userId}:trending`, movies);
+        searchResults.set(`${userId}:results`, movies);
 
         const title = period === 'day' ? '🔥 Trending Today' : '🔥 Trending This Week';
         const { text } = formatMovieList(movies, title);
