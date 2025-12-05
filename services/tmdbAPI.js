@@ -131,6 +131,143 @@ export async function getTrending(timeWindow = 'week') {
 }
 
 /**
+ * Search for TV series on TMDb
+ */
+export async function searchTV(query) {
+    const { client, hasKey } = createClient();
+    if (!hasKey) {
+        console.warn('TMDb API key not configured');
+        return [];
+    }
+
+    try {
+        const response = await client.get('/search/tv', {
+            params: {
+                query: query,
+                include_adult: false
+            }
+        });
+
+        console.log('✅ TMDb TV search successful');
+        return (response.data?.results || []).map(formatTVShow);
+    } catch (error) {
+        console.error('TMDb API Error:', error.message);
+        return [];
+    }
+}
+
+/**
+ * Get trending TV series
+ */
+export async function getTrendingTV(timeWindow = 'week') {
+    const { client, hasKey } = createClient();
+    if (!hasKey) return [];
+
+    try {
+        const response = await client.get(`/trending/tv/${timeWindow}`);
+        console.log('✅ TMDb trending TV successful');
+        return (response.data?.results || []).map(formatTVShow);
+    } catch (error) {
+        console.error('TMDb API Error:', error.message);
+        return [];
+    }
+}
+
+/**
+ * Get trending all (movies + TV)
+ */
+export async function getTrendingAll(timeWindow = 'week') {
+    const { client, hasKey } = createClient();
+    if (!hasKey) return [];
+
+    try {
+        const response = await client.get(`/trending/all/${timeWindow}`);
+        console.log('✅ TMDb trending all successful');
+        return (response.data?.results || []).map(item => {
+            if (item.media_type === 'tv') {
+                return formatTVShow(item);
+            }
+            return formatMovie(item);
+        });
+    } catch (error) {
+        console.error('TMDb API Error:', error.message);
+        return [];
+    }
+}
+
+/**
+ * Get popular animation/anime movies
+ */
+export async function getAnimationMovies(page = 1) {
+    const { client, hasKey } = createClient();
+    if (!hasKey) return [];
+
+    try {
+        const response = await client.get('/discover/movie', {
+            params: {
+                with_genres: 16, // Animation
+                sort_by: 'popularity.desc',
+                page: page
+            }
+        });
+
+        console.log('✅ TMDb animation movies successful');
+        return (response.data?.results || []).map(formatMovie);
+    } catch (error) {
+        console.error('TMDb API Error:', error.message);
+        return [];
+    }
+}
+
+/**
+ * Get popular anime TV series
+ */
+export async function getAnimeTV(page = 1) {
+    const { client, hasKey } = createClient();
+    if (!hasKey) return [];
+
+    try {
+        const response = await client.get('/discover/tv', {
+            params: {
+                with_genres: 16, // Animation
+                with_origin_country: 'JP', // Japan
+                sort_by: 'popularity.desc',
+                page: page
+            }
+        });
+
+        console.log('✅ TMDb anime TV successful');
+        return (response.data?.results || []).map(formatTVShow);
+    } catch (error) {
+        console.error('TMDb API Error:', error.message);
+        return [];
+    }
+}
+
+/**
+ * Format TV show data
+ */
+function formatTVShow(show) {
+    return {
+        id: show.id,
+        title: show.name,
+        originalTitle: show.original_name,
+        year: show.first_air_date ? new Date(show.first_air_date).getFullYear() : null,
+        releaseDate: show.first_air_date,
+        rating: show.vote_average,
+        voteCount: show.vote_count,
+        overview: show.overview,
+        poster: getPosterUrl(show.poster_path),
+        posterPath: show.poster_path,
+        backdrop: getPosterUrl(show.backdrop_path, 'w1280'),
+        genreIds: show.genre_ids || [],
+        popularity: show.popularity,
+        source: 'tmdb',
+        type: 'tv'
+    };
+}
+
+/**
  * Browse movies by genre
  */
 export async function browseByGenre(genreId) {
@@ -240,6 +377,11 @@ export default {
     getMovieDetails,
     getMovieByImdb,
     getTrending,
+    getTrendingTV,
+    getTrendingAll,
+    searchTV,
+    getAnimationMovies,
+    getAnimeTV,
     browseByGenre,
     getPosterUrl,
     GENRE_MAP

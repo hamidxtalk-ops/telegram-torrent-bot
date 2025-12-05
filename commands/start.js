@@ -38,15 +38,23 @@ export async function handleStart(bot, msg) {
         reply_markup: {
             inline_keyboard: [
                 [
-                    { text: '🔍 Search Movies', callback_data: 'prompt_search' },
-                    { text: '🔥 Trending', callback_data: 'trending' }
+                    { text: '🔍 جستجوی فیلم', callback_data: 'prompt_search' },
+                    { text: '📺 سریال', callback_data: 'tv_series' }
                 ],
                 [
-                    { text: '⭐ Favorites', callback_data: 'favorites' },
-                    { text: '🎭 Browse Genres', callback_data: 'browse' }
+                    { text: '🎌 انیمه', callback_data: 'anime' },
+                    { text: '🔥 ترندینگ', callback_data: 'trending' }
                 ],
                 [
-                    { text: '🌐 Language', callback_data: 'select_language' }
+                    { text: '💫 پیشنهادی', callback_data: 'recommended' },
+                    { text: '⭐ علاقه‌مندی‌ها', callback_data: 'favorites' }
+                ],
+                [
+                    { text: '🎭 ژانرها', callback_data: 'browse' },
+                    { text: '📜 تاریخچه', callback_data: 'history' }
+                ],
+                [
+                    { text: '🌐 زبان / Language', callback_data: 'select_language' }
                 ]
             ]
         }
@@ -85,12 +93,20 @@ export async function handleAcceptTerms(bot, query) {
         reply_markup: {
             inline_keyboard: [
                 [
-                    { text: '🔍 Search Movies', callback_data: 'prompt_search' },
-                    { text: '🔥 Trending', callback_data: 'trending' }
+                    { text: '🔍 جستجوی فیلم', callback_data: 'prompt_search' },
+                    { text: '� سریال', callback_data: 'tv_series' }
                 ],
                 [
-                    { text: '⭐ Favorites', callback_data: 'favorites' },
-                    { text: '🎭 Browse Genres', callback_data: 'browse' }
+                    { text: '🎌 انیمه', callback_data: 'anime' },
+                    { text: '🔥 ترندینگ', callback_data: 'trending' }
+                ],
+                [
+                    { text: '💫 پیشنهادی', callback_data: 'recommended' },
+                    { text: '⭐ علاقه‌مندی‌ها', callback_data: 'favorites' }
+                ],
+                [
+                    { text: '🎭 ژانرها', callback_data: 'browse' },
+                    { text: '📜 تاریخچه', callback_data: 'history' }
                 ]
             ]
         }
@@ -145,12 +161,20 @@ export async function handleLanguageChange(bot, query, langCode) {
         reply_markup: {
             inline_keyboard: [
                 [
-                    { text: '🔍 Search Movies', callback_data: 'prompt_search' },
-                    { text: '🔥 Trending', callback_data: 'trending' }
+                    { text: '🔍 جستجوی فیلم', callback_data: 'prompt_search' },
+                    { text: '� سریال', callback_data: 'tv_series' }
                 ],
                 [
-                    { text: '⭐ Favorites', callback_data: 'favorites' },
-                    { text: '🎭 Browse Genres', callback_data: 'browse' }
+                    { text: '🎌 انیمه', callback_data: 'anime' },
+                    { text: '🔥 ترندینگ', callback_data: 'trending' }
+                ],
+                [
+                    { text: '💫 پیشنهادی', callback_data: 'recommended' },
+                    { text: '⭐ علاقه‌مندی‌ها', callback_data: 'favorites' }
+                ],
+                [
+                    { text: '🎭 ژانرها', callback_data: 'browse' },
+                    { text: '📜 تاریخچه', callback_data: 'history' }
                 ]
             ]
         }

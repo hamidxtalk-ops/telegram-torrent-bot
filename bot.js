@@ -78,6 +78,12 @@ import {
     handleBrowseCallback,
     handleGenreCallback
 } from './commands/browse.js';
+import {
+    handleTVSeries,
+    handleAnime,
+    handleRecommended,
+    handleRecommendedGenre
+} from './commands/content.js';
 import { handleLegal } from './commands/legal.js';
 
 // Import services
@@ -238,12 +244,20 @@ async function main() {
                         reply_markup: {
                             inline_keyboard: [
                                 [
-                                    { text: '🔍 Search Movies', callback_data: 'prompt_search' },
-                                    { text: '🔥 Trending', callback_data: 'trending' }
+                                    { text: '🔍 جستجوی فیلم', callback_data: 'prompt_search' },
+                                    { text: '📺 سریال', callback_data: 'tv_series' }
                                 ],
                                 [
-                                    { text: '⭐ Favorites', callback_data: 'favorites' },
-                                    { text: '🎭 Browse Genres', callback_data: 'browse' }
+                                    { text: '🎌 انیمه', callback_data: 'anime' },
+                                    { text: '🔥 ترندینگ', callback_data: 'trending' }
+                                ],
+                                [
+                                    { text: '💫 پیشنهادی', callback_data: 'recommended' },
+                                    { text: '⭐ علاقه‌مندی‌ها', callback_data: 'favorites' }
+                                ],
+                                [
+                                    { text: '🎭 ژانرها', callback_data: 'browse' },
+                                    { text: '📜 تاریخچه', callback_data: 'history' }
                                 ]
                             ]
                         }
@@ -256,7 +270,7 @@ async function main() {
             // Prompt for search
             if (data === 'prompt_search') {
                 await bot.sendMessage(query.message.chat.id,
-                    '🔍 *Send me a movie name to search*\n\nExample: `The Matrix` or `Avengers`',
+                    '🔍 *اسم فیلم یا سریال رو بفرست تا پیداش کنم*\n\nمثال: `Avengers` یا `Breaking Bad`',
                     { parse_mode: 'Markdown' }
                 );
                 await bot.answerCallbackQuery(query.id);
@@ -272,6 +286,30 @@ async function main() {
             if (data.startsWith('trending:')) {
                 const period = data.split(':')[1];
                 await handleTrendingPeriod(bot, query, period);
+                return;
+            }
+
+            // TV Series
+            if (data === 'tv_series') {
+                await handleTVSeries(bot, query);
+                return;
+            }
+
+            // Anime
+            if (data === 'anime') {
+                await handleAnime(bot, query);
+                return;
+            }
+
+            // Recommended
+            if (data === 'recommended') {
+                await handleRecommended(bot, query);
+                return;
+            }
+
+            if (data.startsWith('rec_genre:')) {
+                const genre = data.split(':')[1];
+                await handleRecommendedGenre(bot, query, genre);
                 return;
             }
 

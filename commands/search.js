@@ -10,6 +10,8 @@ import tmdb from '../services/tmdbAPI.js';
 import seedr from '../services/seedrAPI.js';
 import scraper1337x from '../services/scraper1337x.js';
 import scraperTPB from '../services/scraperTPB.js';
+import scraperTGX from '../services/scraperTGX.js';
+import scraperLime from '../services/scraperLime.js';
 import scraperEZTV from '../services/scraperEZTV.js';
 import scraperIranian from '../services/scraperIranian.js';
 import subtitleAPI from '../services/subtitleAPI.js';
@@ -310,6 +312,38 @@ export async function handleMovieSelect(bot, query, indexStr) {
                         results[index] = movie;
                         searchResults.set(`${userId}:results`, results);
                         console.log(`TPB: Found ${movie.torrents.length} torrents`);
+                    }
+                }
+
+                // If still no torrents, try TorrentGalaxy
+                if (!movie.torrents || movie.torrents.length === 0) {
+                    console.log('TPB empty, trying TorrentGalaxy...');
+                    try {
+                        const tgxResults = await scraperTGX.searchWithMagnets(movie.title, 5);
+                        if (tgxResults && tgxResults.length > 0 && tgxResults[0].torrents.length > 0) {
+                            movie = { ...movie, torrents: tgxResults[0].torrents, source: 'TorrentGalaxy' };
+                            results[index] = movie;
+                            searchResults.set(`${userId}:results`, results);
+                            console.log(`TorrentGalaxy: Found ${movie.torrents.length} torrents`);
+                        }
+                    } catch (e) {
+                        console.log('TorrentGalaxy failed:', e.message);
+                    }
+                }
+
+                // If still no torrents, try LimeTorrents
+                if (!movie.torrents || movie.torrents.length === 0) {
+                    console.log('TorrentGalaxy empty, trying LimeTorrents...');
+                    try {
+                        const limeResults = await scraperLime.searchWithMagnets(movie.title, 5);
+                        if (limeResults && limeResults.length > 0 && limeResults[0].torrents.length > 0) {
+                            movie = { ...movie, torrents: limeResults[0].torrents, source: 'LimeTorrents' };
+                            results[index] = movie;
+                            searchResults.set(`${userId}:results`, results);
+                            console.log(`LimeTorrents: Found ${movie.torrents.length} torrents`);
+                        }
+                    } catch (e) {
+                        console.log('LimeTorrents failed:', e.message);
                     }
                 }
             }
