@@ -9,6 +9,7 @@ import yts from '../services/ytsAPI.js';
 import tmdb from '../services/tmdbAPI.js';
 import seedr from '../services/seedrAPI.js';
 import scraper1337x from '../services/scraper1337x.js';
+import subtitleAPI from '../services/subtitleAPI.js';
 import rateLimiter from '../utils/rateLimiter.js';
 import { t } from '../utils/languages.js';
 import { escapeMarkdown } from '../utils/formatter.js';
@@ -200,6 +201,8 @@ async function sendMovieWithDownloads(bot, chatId, movie, lang, movieIndex = 0) 
         });
     }
 
+    // Add subtitle button
+    keyboard.push([{ text: '📝 زیرنویس فارسی', callback_data: `sub:${movieIndex}` }]);
     keyboard.push([{ text: '⭐ افزودن به علاقه‌مندی‌ها', callback_data: `fav:${movie.id}` }]);
 
     // Send with poster
@@ -510,6 +513,54 @@ export async function sendMovieDetails(bot, chatId, movie, lang) {
     await sendMovieWithDownloads(bot, chatId, movie, lang, 0);
 }
 
+/**
+ * Handle subtitle request
+ */
+export async function handleSubtitleRequest(bot, query, movieIndex) {
+    const chatId = query.message.chat.id;
+    const userId = query.from.id;
+
+    await bot.answerCallbackQuery(query.id, { text: '🔍 در حال جستجوی زیرنویس...' });
+
+    const results = searchResults.get(`${userId}:results`);
+    if (!results || !results[parseInt(movieIndex)]) {
+        await bot.sendMessage(chatId, '❌ نتایج منقضی شده. دوباره سرچ کنید.');
+        return;
+    }
+
+    const movie = results[parseInt(movieIndex)];
+
+    try {
+        const subs = await subtitleAPI.searchSubtitles(movie.title, movie.year);
+
+        if (subs && subs.length > 0) {
+            let text = `📝 *زیرنویس فارسی برای ${escapeMarkdown(movie.title)}*\n\n`;
+
+            subs.slice(0, 5).forEach((sub, i) => {
+                const name = sub.name.length > 45 ? sub.name.substring(0, 45) + '...' : sub.name;
+                text += `${i + 1}. [${escapeMarkdown(name)}](${sub.url})\n`;
+            });
+
+            text += '\n_روی لینک کلیک کنید تا دانلود شود_';
+
+            await bot.sendMessage(chatId, text, {
+                parse_mode: 'Markdown',
+                disable_web_page_preview: true
+            });
+        } else {
+            await bot.sendMessage(chatId,
+                `📝 *زیرنویس فارسی برای ${escapeMarkdown(movie.title)}*\n\n` +
+                `❌ _زیرنویس فارسی یافت نشد_\n\n` +
+                `🔍 میتونید در [Subscene](https://subscene.com) جستجو کنید.`,
+                { parse_mode: 'Markdown', disable_web_page_preview: true }
+            );
+        }
+    } catch (error) {
+        console.error('Subtitle error:', error);
+        await bot.sendMessage(chatId, '❌ خطا در جستجوی زیرنویس');
+    }
+}
+
 export default {
     handleSearch,
     handleMovieSelect,
@@ -518,5 +569,7 @@ export default {
     handleMoreSources,
     handleScraperSelect,
     sendMovieDetails,
-    handleMagnetRequest
+    handleMagnetRequest,
+    handleSubtitleRequest
 };
+

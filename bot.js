@@ -64,7 +64,8 @@ import {
     handleTorrentSelect,
     handleMoreSources,
     handleScraperSelect,
-    handleMagnetRequest
+    handleMagnetRequest,
+    handleSubtitleRequest
 } from './commands/search.js';
 import { handleHelp } from './commands/help.js';
 import { handleFavorites, handleAddFavorite, handleClearFavorites, handleFavoritesCallback } from './commands/favorites.js';
@@ -356,6 +357,13 @@ async function main() {
                 const movieId = parts[1];
                 const torrentIndex = parseInt(parts[2]);
                 await handleTorrentSelect(bot, query, movieId, torrentIndex);
+                return;
+            }
+
+            // Subtitle request
+            if (data.startsWith('sub:')) {
+                const movieIndex = data.split(':')[1];
+                await handleSubtitleRequest(bot, query, movieIndex);
                 return;
             }
 
