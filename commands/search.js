@@ -9,6 +9,9 @@ import yts from '../services/ytsAPI.js';
 import tmdb from '../services/tmdbAPI.js';
 import seedr from '../services/seedrAPI.js';
 import scraper1337x from '../services/scraper1337x.js';
+import scraperTPB from '../services/scraperTPB.js';
+import scraperEZTV from '../services/scraperEZTV.js';
+import scraperIranian from '../services/scraperIranian.js';
 import subtitleAPI from '../services/subtitleAPI.js';
 import rateLimiter from '../utils/rateLimiter.js';
 import { t } from '../utils/languages.js';
@@ -295,6 +298,18 @@ export async function handleMovieSelect(bot, query, indexStr) {
                         results[index] = movie;
                         searchResults.set(`${userId}:results`, results);
                         console.log(`1337x: Found ${movie.torrents.length} torrents`);
+                    }
+                }
+
+                // If still no torrents, try TPB
+                if (!movie.torrents || movie.torrents.length === 0) {
+                    console.log('1337x empty, trying TPB...');
+                    const tpbResults = await scraperTPB.searchWithMagnets(movie.title, 3);
+                    if (tpbResults && tpbResults.length > 0 && tpbResults[0].torrents.length > 0) {
+                        movie = { ...movie, torrents: tpbResults[0].torrents, source: 'TPB' };
+                        results[index] = movie;
+                        searchResults.set(`${userId}:results`, results);
+                        console.log(`TPB: Found ${movie.torrents.length} torrents`);
                     }
                 }
             }
