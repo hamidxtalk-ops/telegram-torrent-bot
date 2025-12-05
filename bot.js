@@ -5,6 +5,23 @@
 
 import 'dotenv/config';
 import TelegramBot from 'node-telegram-bot-api';
+import http from 'http';
+
+// HTTP Server for Render.com health checks (required for free tier)
+const PORT = process.env.PORT || 3000;
+const server = http.createServer((req, res) => {
+    if (req.url === '/health' || req.url === '/') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', bot: 'running' }));
+    } else {
+        res.writeHead(404);
+        res.end('Not Found');
+    }
+});
+
+server.listen(PORT, () => {
+    console.log(`🌐 Health check server running on port ${PORT}`);
+});
 
 // Import commands
 import { handleStart, handleAcceptTerms, handleLanguageSelect, handleLanguageChange } from './commands/start.js';
