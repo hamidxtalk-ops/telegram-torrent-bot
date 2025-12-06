@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="color-scheme" content="dark light">
+    
+    <title>🎬 فیلم‌یاب | Movie Finder</title>
+    
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Persian Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>در حال بارگذاری...</p>
+        </div>
+    </div>
+
+    <!-- App Container -->
+    <div id="app" class="app-container hidden">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <span class="logo-icon">🎬</span>
+                <span class="logo-text">فیلم‌یاب</span>
+            </div>
+        </header>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <div class="search-box">
+                <input 
+                    type="text" 
+                    id="search-input" 
+                    class="search-input" 
+                    placeholder="جستجوی فیلم یا سریال..."
+                    autocomplete="off"
+                >
+                <button id="search-btn" class="search-btn">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                </button>
+            </div>
+        </section>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Home View -->
+            <div id="home-view" class="view active">
+                <div class="section-header">
+                    <h2>🔥 پرطرفدار</h2>
+                </div>
+                <div id="trending-movies" class="movies-grid">
+                    <!-- Populated by JS -->
+                </div>
+
+                <div class="section-header">
+                    <h2>📢 منابع فعال</h2>
+                </div>
+                <div class="sources-list">
+                    <div class="source-badge">YTS</div>
+                    <div class="source-badge">1337x</div>
+                    <div class="source-badge">TorrentGalaxy</div>
+                    <div class="source-badge">ZardFilm</div>
+                    <div class="source-badge">CoolDL</div>
+                    <div class="source-badge">Filmeh</div>
+                </div>
+            </div>
+
+            <!-- Search Results View -->
+            <div id="results-view" class="view">
+                <div class="section-header">
+                    <button id="back-btn" class="back-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m9 18 6-6-6-6"></path>
+                        </svg>
+                    </button>
+                    <h2 id="results-title">نتایج جستجو</h2>
+                </div>
+                <div id="search-results" class="movies-grid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Movie Detail View -->
+            <div id="movie-view" class="view">
+                <div class="movie-detail">
+                    <button id="movie-back-btn" class="back-btn floating">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m9 18 6-6-6-6"></path>
+                        </svg>
+                    </button>
+                    <div id="movie-poster" class="movie-poster"></div>
+                    <div class="movie-info">
+                        <h1 id="movie-title" class="movie-title"></h1>
+                        <div class="movie-meta">
+                            <span id="movie-year" class="meta-item"></span>
+                            <span id="movie-rating" class="meta-item rating"></span>
+                            <span id="movie-runtime" class="meta-item"></span>
+                        </div>
+                        <p id="movie-synopsis" class="movie-synopsis"></p>
+                        <div id="movie-genres" class="movie-genres"></div>
+                    </div>
+                    <div class="downloads-section">
+                        <h3>📥 لینک‌های دانلود</h3>
+                        <div id="download-links" class="download-links">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-view="home">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                </svg>
+                <span>خانه</span>
+            </button>
+            <button class="nav-item" data-view="search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <span>جستجو</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- App Script -->
+    <script src="app.js"></script>
+</body>
+</html>

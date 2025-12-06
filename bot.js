@@ -1,25 +1,164 @@
-/**
- * Telegram Torrent Movie Bot
- * Main entry point
- */
-
 import 'dotenv/config';
 import TelegramBot from 'node-telegram-bot-api';
-import http from 'http';
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// HTTP Server for Render.com health checks (required for free tier)
+// ES Module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Express app for API and static files
+const app = express();
 const PORT = process.env.PORT || 3000;
-const server = http.createServer((req, res) => {
-    if (req.url === '/health' || req.url === '/') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'ok', bot: 'running' }));
-    } else {
-        res.writeHead(404);
-        res.end('Not Found');
+
+// Middleware
+app.use(express.json());
+
+// Serve static files for Mini App
+app.use('/webapp', express.static(path.join(__dirname, 'webapp')));
+
+// CORS for Mini App
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, X-Telegram-Init-Data');
+    next();
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', bot: 'running' });
+});
+
+app.get('/', (req, res) => {
+    res.json({ status: 'ok', bot: 'running', webapp: '/webapp/' });
+});
+
+// ==================== MINI APP API ENDPOINTS ====================
+
+import yts from './services/ytsAPI.js';
+import tmdb from './services/tmdbAPI.js';
+import scraperIranian from './services/scraperIranian.js';
+import scraper1337x from './services/scraper1337x.js';
+
+// Search API
+app.get('/api/search', async (req, res) => {
+    try {
+        const query = req.query.q;
+        if (!query) {
+            return res.status(400).json({ error: 'Query parameter q is required' });
+        }
+
+        console.log(`🔍 API search: ${query}`);
+
+        // Search from multiple sources
+        let results = await yts.searchMovies(query, 10);
+
+        // If no YTS results, try TMDB
+        if (!results || results.length === 0) {
+            const tmdbResults = await tmdb.searchMovies(query);
+            results = tmdbResults.map((movie, index) => ({
+                ...movie,
+                id: movie.id || index,
+                synopsis: movie.overview || '',
+                torrents: []
+            }));
+        }
+
+        // Also try Iranian sources
+        try {
+            const iranianResults = await scraperIranian.searchIranian(query, 5);
+            if (iranianResults.length > 0) {
+                results = [...results, ...iranianResults];
+            }
+        } catch (e) {
+            console.log('Iranian search failed:', e.message);
+        }
+
+        res.json({ results: results.slice(0, 20) });
+    } catch (error) {
+        console.error('API search error:', error);
+        res.status(500).json({ error: 'Search failed' });
     }
 });
 
-server.listen(PORT, () => {
+// Trending API
+app.get('/api/trending', async (req, res) => {
+    try {
+        console.log('🔥 API trending request');
+
+        const trending = await tmdb.getTrending('week');
+        const results = trending.map((movie, index) => ({
+            id: movie.id || index,
+            title: movie.title || movie.name,
+            year: movie.release_date?.substring(0, 4) || movie.first_air_date?.substring(0, 4),
+            rating: movie.vote_average?.toFixed(1),
+            poster: movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : null,
+            posterLarge: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
+            overview: movie.overview,
+            torrents: []
+        }));
+
+        res.json({ results: results.slice(0, 12) });
+    } catch (error) {
+        console.error('API trending error:', error);
+        res.status(500).json({ error: 'Failed to get trending' });
+    }
+});
+
+// Movie details API
+app.get('/api/movie/:id', async (req, res) => {
+    try {
+        const movieId = req.params.id;
+        console.log(`🎬 API movie details: ${movieId}`);
+
+        // Get details from TMDB
+        const details = await tmdb.getMovieDetails(movieId);
+
+        if (!details) {
+            return res.status(404).json({ error: 'Movie not found' });
+        }
+
+        // Try to get torrents
+        let torrents = [];
+        try {
+            const ytsResults = await yts.searchMovies(details.title, 3);
+            if (ytsResults.length > 0) {
+                torrents = ytsResults[0].torrents || [];
+            }
+        } catch (e) {
+            console.log('YTS search failed:', e.message);
+        }
+
+        // If no YTS torrents, try 1337x
+        if (torrents.length === 0) {
+            try {
+                const x1337Results = await scraper1337x.searchWithMagnets(details.title, 5);
+                if (x1337Results.length > 0) {
+                    const grouped = scraper1337x.groupByMovie(x1337Results);
+                    if (grouped.length > 0) {
+                        torrents = grouped[0].torrents || [];
+                    }
+                }
+            } catch (e) {
+                console.log('1337x search failed:', e.message);
+            }
+        }
+
+        res.json({
+            ...details,
+            poster: details.poster_path ? `https://image.tmdb.org/t/p/w342${details.poster_path}` : null,
+            posterLarge: details.backdrop_path ? `https://image.tmdb.org/t/p/w780${details.backdrop_path}` : null,
+            torrents
+        });
+    } catch (error) {
+        console.error('API movie details error:', error);
+        res.status(500).json({ error: 'Failed to get movie details' });
+    }
+});
+
+// Start Express server
+app.listen(PORT, () => {
     console.log(`🌐 Health check server running on port ${PORT}`);
 });
 

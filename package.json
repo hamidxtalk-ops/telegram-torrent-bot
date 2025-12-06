@@ -20,6 +20,7 @@
     "axios": "^1.6.2",
     "cheerio": "^1.1.2",
     "dotenv": "^16.3.1",
+    "express": "^5.2.1",
     "https-proxy-agent": "^7.0.6",
     "node-telegram-bot-api": "^0.66.0",
     "socks-proxy-agent": "^8.0.5",
