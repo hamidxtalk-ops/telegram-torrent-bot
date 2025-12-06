@@ -57,11 +57,13 @@ const elements = {
     homeView: document.getElementById('home-view'),
     resultsView: document.getElementById('results-view'),
     movieView: document.getElementById('movie-view'),
+    helpView: document.getElementById('help-view'),
     trendingMovies: document.getElementById('trending-movies'),
     searchResults: document.getElementById('search-results'),
     resultsTitle: document.getElementById('results-title'),
     backBtn: document.getElementById('back-btn'),
     movieBackBtn: document.getElementById('movie-back-btn'),
+    helpBackBtn: document.getElementById('help-back-btn'),
     moviePoster: document.getElementById('movie-poster'),
     movieTitle: document.getElementById('movie-title'),
     movieYear: document.getElementById('movie-year'),
@@ -85,6 +87,7 @@ function showView(viewName) {
     elements.homeView.classList.remove('active');
     elements.resultsView.classList.remove('active');
     elements.movieView.classList.remove('active');
+    elements.helpView.classList.remove('active');
 
     // Show requested view
     switch (viewName) {
@@ -96,6 +99,9 @@ function showView(viewName) {
             break;
         case 'movie':
             elements.movieView.classList.add('active');
+            break;
+        case 'help':
+            elements.helpView.classList.add('active');
             break;
     }
 
@@ -345,6 +351,11 @@ function setupEventListeners() {
         } else {
             showView('home');
         }
+    });
+
+    // Help back button
+    elements.helpBackBtn.addEventListener('click', () => {
+        showView('home');
     });
 
     // Navigation

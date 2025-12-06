@@ -390,6 +390,94 @@ body {
     color: var(--text-secondary);
 }
 
+.source-badge.intl {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: #60a5fa;
+}
+
+.source-badge.persian {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #34d399;
+}
+
+.source-badge.telegram {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: #a78bfa;
+}
+
+/* Help Section */
+.help-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.help-section {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+}
+
+.help-section h3 {
+    font-size: 1rem;
+    margin-bottom: var(--spacing-sm);
+    color: var(--accent-primary);
+}
+
+.help-section p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.7;
+}
+
+.help-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-sm);
+}
+
+.help-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.help-card-header span:last-child {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.help-card p {
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.quality-list {
+    list-style: none;
+    margin-top: var(--spacing-sm);
+}
+
+.quality-list li {
+    padding: var(--spacing-xs) 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.quality-list li:last-child {
+    border-bottom: none;
+}
+
+.quality-list strong {
+    color: var(--text-primary);
+}
+
 /* Movie Detail */
 .movie-detail {
     position: relative;

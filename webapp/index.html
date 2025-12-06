@@ -72,12 +72,17 @@
                     <h2>📢 منابع فعال</h2>
                 </div>
                 <div class="sources-list">
-                    <div class="source-badge">YTS</div>
-                    <div class="source-badge">1337x</div>
-                    <div class="source-badge">TorrentGalaxy</div>
-                    <div class="source-badge">ZardFilm</div>
-                    <div class="source-badge">CoolDL</div>
-                    <div class="source-badge">Filmeh</div>
+                    <div class="source-badge intl">YTS</div>
+                    <div class="source-badge intl">1337x</div>
+                    <div class="source-badge intl">TorrentGalaxy</div>
+                    <div class="source-badge intl">TPB</div>
+                    <div class="source-badge intl">LimeTorrents</div>
+                    <div class="source-badge persian">ZardFilm</div>
+                    <div class="source-badge persian">CoolDL</div>
+                    <div class="source-badge persian">UpTVs</div>
+                    <div class="source-badge persian">Film2Movie</div>
+                    <div class="source-badge telegram">Filmeh</div>
+                    <div class="source-badge telegram">CastroFilm</div>
                 </div>
             </div>
 
@@ -123,6 +128,81 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Help View -->
+            <div id="help-view" class="view">
+                <div class="section-header">
+                    <button id="help-back-btn" class="back-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m9 18 6-6-6-6"></path>
+                        </svg>
+                    </button>
+                    <h2>📖 راهنما</h2>
+                </div>
+                
+                <div class="help-content">
+                    <div class="help-section">
+                        <h3>🔍 نحوه جستجو</h3>
+                        <p>نام فیلم یا سریال رو به انگلیسی یا فارسی بنویسید. ما همزمان از ۱۱ منبع مختلف جستجو می‌کنیم.</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>📥 انواع لینک دانلود</h3>
+                        
+                        <div class="help-card">
+                            <div class="help-card-header">
+                                <span class="source-badge intl">Torrent</span>
+                                <span>YTS, 1337x, TPB</span>
+                            </div>
+                            <p>لینک مگنت - باید با برنامه تورنت (مثل uTorrent یا qBittorrent) دانلود کنید.</p>
+                        </div>
+
+                        <div class="help-card">
+                            <div class="help-card-header">
+                                <span class="source-badge persian">Direct</span>
+                                <span>ZardFilm, CoolDL, UpTVs</span>
+                            </div>
+                            <p>لینک مستقیم - کلیک کنید تا مستقیم دانلود شود. نیازی به برنامه خاصی نیست.</p>
+                        </div>
+
+                        <div class="help-card">
+                            <div class="help-card-header">
+                                <span class="source-badge telegram">Telegram</span>
+                                <span>Filmeh, CastroFilm</span>
+                            </div>
+                            <p>لینک بات تلگرام - کلیک کنید تا به بات @FilmehBot بروید و فایل رو دریافت کنید.</p>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>🎬 کیفیت‌ها</h3>
+                        <ul class="quality-list">
+                            <li><strong>480p</strong> - کیفیت پایین، حجم کم (~500MB)</li>
+                            <li><strong>720p</strong> - کیفیت متوسط (~1GB)</li>
+                            <li><strong>1080p</strong> - کیفیت بالا (~2-3GB)</li>
+                            <li><strong>2160p/4K</strong> - بهترین کیفیت (~10-20GB)</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>🔊 نسخه‌ها</h3>
+                        <ul class="quality-list">
+                            <li><strong>دوبله فارسی</strong> - صداگذاری فارسی</li>
+                            <li><strong>زیرنویس چسبیده</strong> - زیرنویس فارسی روی فیلم</li>
+                            <li><strong>زیرنویس جداگانه</strong> - باید زیرنویس رو جدا دانلود کنید</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>📱 پخش کننده‌های پیشنهادی</h3>
+                        <p>برای پخش فایل‌های دانلود شده:</p>
+                        <ul class="quality-list">
+                            <li><strong>موبایل:</strong> MX Player, VLC</li>
+                            <li><strong>کامپیوتر:</strong> VLC, PotPlayer</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- Bottom Navigation -->
@@ -139,6 +219,14 @@
                     <path d="m21 21-4.35-4.35"></path>
                 </svg>
                 <span>جستجو</span>
+            </button>
+            <button class="nav-item" data-view="help">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M9 9a3 3 0 1 1 4 2.83v1.17"></path>
+                    <circle cx="12" cy="17" r="0.5" fill="currentColor"></circle>
+                </svg>
+                <span>راهنما</span>
             </button>
         </nav>
     </div>
