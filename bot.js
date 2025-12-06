@@ -52,7 +52,7 @@ import scraperCoolDL from './services/scraperCoolDL.js';
 import scraperUptvs from './services/scraperUptvs.js';
 import scraperZardFilm from './services/scraperZardFilm.js';
 
-// Search API - Searches ALL sources (Persian sources FIRST)
+// Search API - Searches ALL sources (Persian + Telegram FIRST)
 app.get('/api/search', async (req, res) => {
     try {
         const query = req.query.q;
@@ -62,9 +62,13 @@ app.get('/api/search', async (req, res) => {
 
         console.log(`🔍 API search: ${query}`);
 
-        // Search from ALL sources in parallel (Persian sources prioritized)
-        const [iranianResults, tmdbResults] = await Promise.allSettled([
+        // Import Telegram scraper
+        const scraperTelegram = (await import('./services/scraperTelegramChannels.js')).default;
+
+        // Search from ALL sources in parallel (Persian + Telegram sources prioritized)
+        const [iranianResults, telegramResults, tmdbResults] = await Promise.allSettled([
             scraperIranian.searchWithLinks(query, 10),
+            scraperTelegram.searchWithLinks(query, 10),
             tmdb.searchMovies(query)
         ]);
 
@@ -76,6 +80,19 @@ app.get('/api/search', async (req, res) => {
                 ...m,
                 sourceType: 'persian'
             })));
+        }
+
+        // Add Telegram channel results (also direct links)
+        if (telegramResults.status === 'fulfilled' && telegramResults.value?.length > 0) {
+            // Filter out duplicates
+            const telegramMovies = telegramResults.value.filter(tg =>
+                !results.find(r => r.title?.toLowerCase() === tg.title?.toLowerCase())
+            ).map(m => ({
+                ...m,
+                sourceType: 'telegram'
+            }));
+            results.push(...telegramMovies);
+            console.log(`📢 Telegram: Found ${telegramMovies.length} additional results`);
         }
 
         // Add TMDB results for movie info (will fetch links on detail page)
@@ -97,7 +114,8 @@ app.get('/api/search', async (req, res) => {
             results.push(...tmdbMovies);
         }
 
-        res.json({ results: results.slice(0, 25) });
+        console.log(`✅ Total search results: ${results.length}`);
+        res.json({ results: results.slice(0, 30) });
     } catch (error) {
         console.error('API search error:', error);
         res.status(500).json({ error: 'Search failed' });
