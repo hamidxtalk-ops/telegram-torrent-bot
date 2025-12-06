@@ -290,13 +290,34 @@ function renderMovieGrid(container, movies) {
 
     // Add click listeners
     container.querySelectorAll('.movie-card').forEach(card => {
-        card.addEventListener('click', () => {
+        card.addEventListener('click', async () => {
             const index = parseInt(card.dataset.index);
             const movie = movies[index];
             if (movie) {
                 state.selectedMovie = movie;
-                renderMovieDetail(movie);
                 showView('movie');
+
+                // Check if movie needs to fetch download links
+                const needsLinks = !movie.torrents || movie.torrents.length === 0 || movie.sourceType === 'info';
+
+                if (needsLinks && movie.id) {
+                    // Show movie with loading state for downloads
+                    renderMovieDetail({ ...movie, torrents: null, loadingLinks: true });
+
+                    try {
+                        // Fetch full details with download links
+                        const data = await apiRequest(`/api/movie/${movie.id}`);
+                        state.selectedMovie = { ...movie, ...data };
+                        renderMovieDetail(state.selectedMovie);
+                    } catch (error) {
+                        console.error('Error fetching movie details:', error);
+                        // Still show movie but with no links message
+                        renderMovieDetail(movie);
+                    }
+                } else {
+                    // Movie already has torrents, just render
+                    renderMovieDetail(movie);
+                }
             }
         });
     });
@@ -317,7 +338,7 @@ function renderMovieDetail(movie) {
     ).join('');
 
     // Download links with type badges
-    const torrents = movie.torrents || [];
+    const torrents = movie.torrents;
 
     // Action buttons (Subtitle + Download Guide)
     let actionsHTML = `
@@ -331,7 +352,15 @@ function renderMovieDetail(movie) {
         </div>
     `;
 
-    if (torrents.length === 0) {
+    // Check if loading
+    if (movie.loadingLinks) {
+        elements.downloadLinks.innerHTML = actionsHTML + `
+            <div class="loading-links">
+                <div class="loading-spinner" style="width:24px;height:24px;margin:20px auto;"></div>
+                <p style="text-align:center;color:var(--text-secondary);">در حال جستجوی لینک‌های دانلود...</p>
+            </div>
+        `;
+    } else if (!torrents || torrents.length === 0) {
         elements.downloadLinks.innerHTML = actionsHTML + `
             <div class="empty-state">
                 <p>لینک دانلود موجود نیست</p>
