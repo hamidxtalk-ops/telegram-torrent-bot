@@ -8,6 +8,7 @@ import * as cheerio from 'cheerio';
 import scraperZardFilm from './scraperZardFilm.js';
 import scraperCoolDL from './scraperCoolDL.js';
 import scraperUptvs from './scraperUptvs.js';
+import scraperTelegram from './scraperTelegramChannels.js';
 
 // Persian movie sites
 const SOURCES = {
@@ -132,11 +133,12 @@ export async function searchIranian(query, limit = 10) {
     console.log(`🇮🇷 Searching all Persian sources for: ${query}`);
 
     // Search all sources in parallel
-    const [film2movieResults, zardfilmResults, cooldlResults, uptvsResults] = await Promise.allSettled([
+    const [film2movieResults, zardfilmResults, cooldlResults, uptvsResults, telegramResults] = await Promise.allSettled([
         searchFilm2Movie(query, limit),
         scraperZardFilm.searchZardFilm(query, limit),
         scraperCoolDL.searchCoolDL(query, limit),
-        scraperUptvs.searchUptvs(query, limit)
+        scraperUptvs.searchUptvs(query, limit),
+        scraperTelegram.searchTelegramChannels(query, limit)
     ]);
 
     const results = [];
@@ -146,6 +148,7 @@ export async function searchIranian(query, limit = 10) {
     if (zardfilmResults.status === 'fulfilled') results.push(...zardfilmResults.value);
     if (cooldlResults.status === 'fulfilled') results.push(...cooldlResults.value);
     if (uptvsResults.status === 'fulfilled') results.push(...uptvsResults.value);
+    if (telegramResults.status === 'fulfilled') results.push(...telegramResults.value);
 
     console.log(`✅ Total Persian results: ${results.length}`);
     return results.slice(0, limit);
@@ -158,11 +161,12 @@ export async function searchWithLinks(query, limit = 5) {
     console.log(`🇮🇷 Searching Persian sources with links: ${query}`);
 
     // Try all sources in parallel
-    const [film2movieResults, zardfilmResults, cooldlResults, uptvsResults] = await Promise.allSettled([
+    const [film2movieResults, zardfilmResults, cooldlResults, uptvsResults, telegramResults] = await Promise.allSettled([
         searchFilm2MovieWithLinks(query, 2),
         scraperZardFilm.searchWithLinks(query, 2),
         scraperCoolDL.searchWithLinks(query, 2),
-        scraperUptvs.searchWithLinks(query, 2)
+        scraperUptvs.searchWithLinks(query, 2),
+        scraperTelegram.searchWithLinks(query, 2)
     ]);
 
     const results = [];
@@ -171,6 +175,7 @@ export async function searchWithLinks(query, limit = 5) {
     if (zardfilmResults.status === 'fulfilled') results.push(...zardfilmResults.value);
     if (cooldlResults.status === 'fulfilled') results.push(...cooldlResults.value);
     if (uptvsResults.status === 'fulfilled') results.push(...uptvsResults.value);
+    if (telegramResults.status === 'fulfilled') results.push(...telegramResults.value);
 
     console.log(`✅ Total Persian results with links: ${results.length}`);
     return results.slice(0, limit);
