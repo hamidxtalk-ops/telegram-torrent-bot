@@ -8,9 +8,15 @@ import * as cheerio from 'cheerio';
 
 // Telegram channels to scrape
 const CHANNELS = [
+    { name: 'Filmeh_Archive', displayName: 'Filmeh Archive' },
+    { name: 'WhenMoviez', displayName: 'When Moviez' },
     { name: 'Filmeeh1', displayName: 'Filmeh | فیلمه' },
-    { name: 'CastroFilm4', displayName: 'Castro Film' },
-    { name: 'Filmeh_Archive', displayName: 'Filmeh Archive' }
+    { name: 'Film_Bazzanz', displayName: 'Film Bazzan' },
+    { name: 'FilmpokVvip', displayName: 'Filmpok VIP' },
+    { name: 'Filmseven_asli7', displayName: 'Film7' },
+    { name: 'Mr_Film78', displayName: 'Mr Film' },
+    { name: 'Sitofilm', displayName: 'Sito Film' },
+    { name: 'CastroFilm4', displayName: 'Castro Film' }
 ];
 
 const client = axios.create({

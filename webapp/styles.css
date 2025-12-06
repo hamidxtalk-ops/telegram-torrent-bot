@@ -374,6 +374,82 @@ body {
     color: var(--text-secondary);
 }
 
+/* Quick Access Buttons */
+.quick-access {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+}
+
+.quick-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md) var(--spacing-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    color: var(--text-primary);
+    font-family: inherit;
+}
+
+.quick-btn:hover {
+    background: var(--accent-secondary);
+    border-color: var(--accent-primary);
+}
+
+.quick-btn:active {
+    transform: scale(0.95);
+}
+
+.quick-icon {
+    font-size: 1.5rem;
+}
+
+.quick-btn span:last-child {
+    font-size: 0.75rem;
+}
+
+/* Genres Grid */
+.genres-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+}
+
+.genre-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.genre-card:hover {
+    background: var(--accent-secondary);
+    border-color: var(--accent-primary);
+}
+
+.genre-card:active {
+    transform: scale(0.98);
+}
+
+.genre-icon {
+    font-size: 1.5rem;
+}
+
+.genre-name {
+    font-weight: 500;
+}
+
 /* Sources List */
 .sources-list {
     display: flex;
@@ -685,4 +761,284 @@ body {
 
 .text-center {
     text-align: center;
+}
+
+/* ===================================
+   Movie Actions & Download Badges
+   =================================== */
+
+.movie-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.action-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+}
+
+.action-btn:hover {
+    border-color: var(--accent-primary);
+    background: var(--accent-secondary);
+}
+
+.action-btn.subtitle-btn:hover {
+    border-color: #10b981;
+}
+
+.action-btn.guide-btn:hover {
+    border-color: #f59e0b;
+}
+
+/* Download Type Badges */
+.download-type-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.download-btn.type-direct {
+    border-right: 3px solid #10b981;
+}
+
+.download-btn.type-direct .download-type-badge {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+
+.download-btn.type-telegram {
+    border-right: 3px solid #8b5cf6;
+}
+
+.download-btn.type-telegram .download-type-badge {
+    background: rgba(139, 92, 246, 0.2);
+    color: #a78bfa;
+}
+
+.download-btn.type-torrent {
+    border-right: 3px solid #3b82f6;
+}
+
+.download-btn.type-torrent .download-type-badge {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+}
+
+/* ===================================
+   Modal Styles
+   =================================== */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: var(--spacing-md);
+    animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    max-width: 400px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from { 
+        opacity: 0; 
+        transform: translateY(30px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.modal-body {
+    padding: var(--spacing-md);
+}
+
+/* Subtitle Modal Items */
+.subtitle-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    text-decoration: none;
+    color: inherit;
+    transition: all var(--transition-fast);
+}
+
+.subtitle-item:hover {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.subtitle-name {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.subtitle-author {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.subtitle-more {
+    display: block;
+    text-align: center;
+    padding: var(--spacing-md);
+    color: var(--accent-primary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: var(--spacing-sm);
+}
+
+.subtitle-more:hover {
+    background: var(--bg-card);
+}
+
+/* Download Guide Modal */
+.guide-modal {
+    max-width: 450px;
+}
+
+.guide-section {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    border: 1px solid var(--border-color);
+}
+
+.guide-section:last-child {
+    margin-bottom: 0;
+}
+
+.guide-section h4 {
+    font-size: 0.95rem;
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.guide-badge {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-weight: 400;
+}
+
+.guide-badge.direct {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+
+.guide-badge.telegram {
+    background: rgba(139, 92, 246, 0.2);
+    color: #a78bfa;
+}
+
+.guide-badge.torrent {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+}
+
+.guide-section ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.guide-section li {
+    padding: var(--spacing-xs) 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    padding-right: var(--spacing-md);
+    position: relative;
+}
+
+.guide-section li::before {
+    content: '•';
+    position: absolute;
+    right: 0;
+    color: var(--accent-primary);
+}
+
+.guide-section.players {
+    background: var(--accent-secondary);
+}
+
+.guide-section.players p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: var(--spacing-xs) 0;
+}
+
+.guide-section.players strong {
+    color: var(--text-primary);
 }

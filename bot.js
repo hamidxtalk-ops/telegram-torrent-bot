@@ -40,8 +40,19 @@ import yts from './services/ytsAPI.js';
 import tmdb from './services/tmdbAPI.js';
 import scraperIranian from './services/scraperIranian.js';
 import scraper1337x from './services/scraper1337x.js';
+import scraperTPB from './services/scraperTPB.js';
+import scraperTGX from './services/scraperTGX.js';
+import scraperLime from './services/scraperLime.js';
+import scraperTodayTV from './services/scraperTodayTV.js';
+import scraperTorrentDL from './services/scraperTorrentDL.js';
+import scraperGLODLS from './services/scraperGLODLS.js';
+import scraperNyaa from './services/scraperNyaa.js';
+import subtitleAPI from './services/subtitleAPI.js';
+import scraperCoolDL from './services/scraperCoolDL.js';
+import scraperUptvs from './services/scraperUptvs.js';
+import scraperZardFilm from './services/scraperZardFilm.js';
 
-// Search API
+// Search API - Searches ALL sources (Persian sources FIRST)
 app.get('/api/search', async (req, res) => {
     try {
         const query = req.query.q;
@@ -51,31 +62,42 @@ app.get('/api/search', async (req, res) => {
 
         console.log(`🔍 API search: ${query}`);
 
-        // Search from multiple sources
-        let results = await yts.searchMovies(query, 10);
+        // Search from ALL sources in parallel (Persian sources prioritized)
+        const [iranianResults, tmdbResults] = await Promise.allSettled([
+            scraperIranian.searchWithLinks(query, 10),
+            tmdb.searchMovies(query)
+        ]);
 
-        // If no YTS results, try TMDB
-        if (!results || results.length === 0) {
-            const tmdbResults = await tmdb.searchMovies(query);
-            results = tmdbResults.map((movie, index) => ({
-                ...movie,
-                id: movie.id || index,
-                synopsis: movie.overview || '',
-                torrents: []
-            }));
+        let results = [];
+
+        // Add Iranian/Persian results FIRST (direct download links)
+        if (iranianResults.status === 'fulfilled' && iranianResults.value?.length > 0) {
+            results.push(...iranianResults.value.map(m => ({
+                ...m,
+                sourceType: 'persian'
+            })));
         }
 
-        // Also try Iranian sources
-        try {
-            const iranianResults = await scraperIranian.searchIranian(query, 5);
-            if (iranianResults.length > 0) {
-                results = [...results, ...iranianResults];
-            }
-        } catch (e) {
-            console.log('Iranian search failed:', e.message);
+        // Add TMDB results for movie info (will fetch links on detail page)
+        if (tmdbResults.status === 'fulfilled' && tmdbResults.value?.length > 0) {
+            const tmdbMovies = tmdbResults.value
+                .filter(movie => !results.find(r => r.title?.toLowerCase() === movie.title?.toLowerCase()))
+                .map((movie, index) => ({
+                    id: movie.id || index,
+                    title: movie.title || movie.name,
+                    year: movie.release_date?.substring(0, 4),
+                    rating: movie.vote_average?.toFixed(1),
+                    poster: movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : null,
+                    posterLarge: movie.backdrop_path ? `https://image.tmdb.org/t/p/w780${movie.backdrop_path}` : null,
+                    synopsis: movie.overview || '',
+                    torrents: [],
+                    source: 'TMDB',
+                    sourceType: 'info'
+                }));
+            results.push(...tmdbMovies);
         }
 
-        res.json({ results: results.slice(0, 20) });
+        res.json({ results: results.slice(0, 25) });
     } catch (error) {
         console.error('API search error:', error);
         res.status(500).json({ error: 'Search failed' });
@@ -85,9 +107,10 @@ app.get('/api/search', async (req, res) => {
 // Trending API
 app.get('/api/trending', async (req, res) => {
     try {
-        console.log('🔥 API trending request');
+        const period = req.query.period || 'week';
+        console.log(`🔥 API trending: ${period}`);
 
-        const trending = await tmdb.getTrending('week');
+        const trending = await tmdb.getTrending(period);
         const results = trending.map((movie, index) => ({
             id: movie.id || index,
             title: movie.title || movie.name,
@@ -96,17 +119,108 @@ app.get('/api/trending', async (req, res) => {
             poster: movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : null,
             posterLarge: movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null,
             overview: movie.overview,
+            mediaType: movie.media_type,
             torrents: []
         }));
 
-        res.json({ results: results.slice(0, 12) });
+        res.json({ results: results.slice(0, 15) });
     } catch (error) {
         console.error('API trending error:', error);
         res.status(500).json({ error: 'Failed to get trending' });
     }
 });
 
-// Movie details API
+// Genres API
+app.get('/api/genres', async (req, res) => {
+    const genres = [
+        { id: 28, name: 'اکشن', nameEn: 'Action' },
+        { id: 35, name: 'کمدی', nameEn: 'Comedy' },
+        { id: 18, name: 'درام', nameEn: 'Drama' },
+        { id: 27, name: 'ترسناک', nameEn: 'Horror' },
+        { id: 878, name: 'علمی تخیلی', nameEn: 'Sci-Fi' },
+        { id: 10749, name: 'عاشقانه', nameEn: 'Romance' },
+        { id: 53, name: 'هیجان‌انگیز', nameEn: 'Thriller' },
+        { id: 16, name: 'انیمیشن', nameEn: 'Animation' },
+        { id: 80, name: 'جنایی', nameEn: 'Crime' },
+        { id: 99, name: 'مستند', nameEn: 'Documentary' }
+    ];
+    res.json({ genres });
+});
+
+// Browse by Genre API
+app.get('/api/genre/:id', async (req, res) => {
+    try {
+        const genreId = req.params.id;
+        console.log(`🎭 API genre: ${genreId}`);
+
+        const movies = await tmdb.discoverByGenre(genreId);
+        const results = movies.map((movie, index) => ({
+            id: movie.id || index,
+            title: movie.title || movie.name,
+            year: movie.release_date?.substring(0, 4),
+            rating: movie.vote_average?.toFixed(1),
+            poster: movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : null,
+            posterLarge: movie.backdrop_path ? `https://image.tmdb.org/t/p/w780${movie.backdrop_path}` : null,
+            overview: movie.overview,
+            torrents: []
+        }));
+
+        res.json({ results: results.slice(0, 20) });
+    } catch (error) {
+        console.error('API genre error:', error);
+        res.status(500).json({ error: 'Failed to get movies by genre' });
+    }
+});
+
+// TV Series API
+app.get('/api/tv', async (req, res) => {
+    try {
+        console.log('📺 API TV series');
+        const tvShows = await tmdb.getPopularTV();
+        const results = tvShows.map((show, index) => ({
+            id: show.id || index,
+            title: show.name,
+            year: show.first_air_date?.substring(0, 4),
+            rating: show.vote_average?.toFixed(1),
+            poster: show.poster_path ? `https://image.tmdb.org/t/p/w342${show.poster_path}` : null,
+            posterLarge: show.backdrop_path ? `https://image.tmdb.org/t/p/w780${show.backdrop_path}` : null,
+            overview: show.overview,
+            mediaType: 'tv',
+            torrents: []
+        }));
+
+        res.json({ results: results.slice(0, 20) });
+    } catch (error) {
+        console.error('API TV error:', error);
+        res.status(500).json({ error: 'Failed to get TV series' });
+    }
+});
+
+// Anime API
+app.get('/api/anime', async (req, res) => {
+    try {
+        console.log('🎌 API Anime');
+        const anime = await tmdb.discoverByGenre(16); // Animation genre
+        const results = anime.map((show, index) => ({
+            id: show.id || index,
+            title: show.title || show.name,
+            year: show.release_date?.substring(0, 4) || show.first_air_date?.substring(0, 4),
+            rating: show.vote_average?.toFixed(1),
+            poster: show.poster_path ? `https://image.tmdb.org/t/p/w342${show.poster_path}` : null,
+            posterLarge: show.backdrop_path ? `https://image.tmdb.org/t/p/w780${show.backdrop_path}` : null,
+            overview: show.overview,
+            mediaType: 'anime',
+            torrents: []
+        }));
+
+        res.json({ results: results.slice(0, 20) });
+    } catch (error) {
+        console.error('API anime error:', error);
+        res.status(500).json({ error: 'Failed to get anime' });
+    }
+});
+
+// Movie details with ALL download links
 app.get('/api/movie/:id', async (req, res) => {
     try {
         const movieId = req.params.id;
@@ -119,42 +233,206 @@ app.get('/api/movie/:id', async (req, res) => {
             return res.status(404).json({ error: 'Movie not found' });
         }
 
-        // Try to get torrents
-        let torrents = [];
-        try {
-            const ytsResults = await yts.searchMovies(details.title, 3);
-            if (ytsResults.length > 0) {
-                torrents = ytsResults[0].torrents || [];
-            }
-        } catch (e) {
-            console.log('YTS search failed:', e.message);
+        const movieTitle = details.title;
+        let allTorrents = [];
+
+        // Search ALL sources in parallel
+        const [ytsRes, x1337Res, tpbRes, tgxRes, limeRes, iranianRes] = await Promise.allSettled([
+            yts.searchMovies(movieTitle, 3),
+            scraper1337x.searchWithMagnets(movieTitle, 5),
+            scraperTPB.searchWithMagnets(movieTitle, 3),
+            scraperTGX.searchWithMagnets(movieTitle, 3),
+            scraperLime.searchWithMagnets(movieTitle, 3),
+            scraperIranian.searchWithLinks(movieTitle, 5)
+        ]);
+
+        // YTS torrents
+        if (ytsRes.status === 'fulfilled' && ytsRes.value?.[0]?.torrents) {
+            allTorrents.push(...ytsRes.value[0].torrents.map(t => ({
+                ...t,
+                source: 'YTS',
+                type: 'torrent'
+            })));
         }
 
-        // If no YTS torrents, try 1337x
-        if (torrents.length === 0) {
-            try {
-                const x1337Results = await scraper1337x.searchWithMagnets(details.title, 5);
-                if (x1337Results.length > 0) {
-                    const grouped = scraper1337x.groupByMovie(x1337Results);
-                    if (grouped.length > 0) {
-                        torrents = grouped[0].torrents || [];
-                    }
-                }
-            } catch (e) {
-                console.log('1337x search failed:', e.message);
+        // 1337x torrents
+        if (x1337Res.status === 'fulfilled' && x1337Res.value?.length > 0) {
+            const grouped = scraper1337x.groupByMovie(x1337Res.value);
+            if (grouped[0]?.torrents) {
+                allTorrents.push(...grouped[0].torrents.map(t => ({
+                    ...t,
+                    source: '1337x',
+                    type: 'torrent'
+                })));
             }
         }
+
+        // TPB torrents
+        if (tpbRes.status === 'fulfilled' && tpbRes.value?.[0]?.torrents) {
+            allTorrents.push(...tpbRes.value[0].torrents.slice(0, 3).map(t => ({
+                ...t,
+                source: 'TPB',
+                type: 'torrent'
+            })));
+        }
+
+        // TorrentGalaxy torrents
+        if (tgxRes.status === 'fulfilled' && tgxRes.value?.[0]?.torrents) {
+            allTorrents.push(...tgxRes.value[0].torrents.slice(0, 3).map(t => ({
+                ...t,
+                source: 'TorrentGalaxy',
+                type: 'torrent'
+            })));
+        }
+
+        // LimeTorrents
+        if (limeRes.status === 'fulfilled' && limeRes.value?.[0]?.torrents) {
+            allTorrents.push(...limeRes.value[0].torrents.slice(0, 3).map(t => ({
+                ...t,
+                source: 'LimeTorrents',
+                type: 'torrent'
+            })));
+        }
+
+        // Iranian/Persian sources (direct links)
+        if (iranianRes.status === 'fulfilled' && iranianRes.value?.length > 0) {
+            for (const movie of iranianRes.value) {
+                if (movie.torrents) {
+                    allTorrents.push(...movie.torrents.map(t => ({
+                        ...t,
+                        type: t.isTelegramBot ? 'telegram' : 'direct'
+                    })));
+                }
+            }
+        }
+
+        console.log(`📥 Found ${allTorrents.length} total download links`);
 
         res.json({
             ...details,
+            title: details.title,
+            year: details.release_date?.substring(0, 4),
+            rating: details.vote_average?.toFixed(1),
+            runtime: details.runtime,
+            genres: details.genres,
             poster: details.poster_path ? `https://image.tmdb.org/t/p/w342${details.poster_path}` : null,
             posterLarge: details.backdrop_path ? `https://image.tmdb.org/t/p/w780${details.backdrop_path}` : null,
-            torrents
+            synopsis: details.overview,
+            torrents: allTorrents
         });
     } catch (error) {
         console.error('API movie details error:', error);
         res.status(500).json({ error: 'Failed to get movie details' });
     }
+});
+
+// ==================== NEW MINI APP ENDPOINTS ====================
+
+// Subtitle Search API - Persian subtitles
+app.get('/api/subtitles', async (req, res) => {
+    try {
+        const title = req.query.title;
+        const year = req.query.year;
+
+        if (!title) {
+            return res.status(400).json({ error: 'Title is required' });
+        }
+
+        console.log(`📝 API subtitle search: ${title} (${year})`);
+
+        const subtitles = await subtitleAPI.searchSubtitles(title, year);
+
+        res.json({
+            subtitles,
+            searchUrl: `https://subscene.com/subtitles/searchbytitle?query=${encodeURIComponent(title)}`
+        });
+    } catch (error) {
+        console.error('Subtitle API error:', error);
+        res.status(500).json({ error: 'Failed to search subtitles' });
+    }
+});
+
+// Persian-Only Search API - Direct download links only
+app.get('/api/search/persian', async (req, res) => {
+    try {
+        const query = req.query.q;
+        if (!query) {
+            return res.status(400).json({ error: 'Query parameter q is required' });
+        }
+
+        console.log(`🇮🇷 API Persian search: ${query}`);
+
+        // Search all Persian sources in parallel
+        const [coolDL, uptvs, zardFilm, film2movie] = await Promise.allSettled([
+            scraperCoolDL.searchWithLinks(query, 5),
+            scraperUptvs.searchWithLinks(query, 5),
+            scraperZardFilm.searchWithLinks(query, 5),
+            scraperIranian.searchWithLinks(query, 5)
+        ]);
+
+        let results = [];
+
+        // Collect all Persian results
+        if (coolDL.status === 'fulfilled' && coolDL.value?.length > 0) {
+            results.push(...coolDL.value);
+        }
+        if (uptvs.status === 'fulfilled' && uptvs.value?.length > 0) {
+            results.push(...uptvs.value);
+        }
+        if (zardFilm.status === 'fulfilled' && zardFilm.value?.length > 0) {
+            results.push(...zardFilm.value);
+        }
+        if (film2movie.status === 'fulfilled' && film2movie.value?.length > 0) {
+            results.push(...film2movie.value);
+        }
+
+        console.log(`✅ Persian sources: Found ${results.length} results`);
+        res.json({ results: results.slice(0, 20) });
+    } catch (error) {
+        console.error('Persian search error:', error);
+        res.status(500).json({ error: 'Persian search failed' });
+    }
+});
+
+// Download Guide API - Returns instructions in Persian
+app.get('/api/download-guide', (req, res) => {
+    res.json({
+        guides: {
+            direct: {
+                title: '🔗 لینک مستقیم',
+                sources: ['CoolDL', 'UpTVs', 'ZardFilm', 'Film2Movie'],
+                steps: [
+                    'روی دکمه دانلود کلیک کنید',
+                    'دانلود مستقیم شروع می‌شود',
+                    'نیازی به برنامه خاصی نیست'
+                ]
+            },
+            telegram: {
+                title: '📱 بات تلگرام',
+                sources: ['Filmeh', 'CastroFilm'],
+                steps: [
+                    'روی لینک کلیک کنید',
+                    'به بات تلگرام منتقل می‌شوید',
+                    'دکمه Start را بزنید',
+                    'فایل را دریافت کنید'
+                ]
+            },
+            torrent: {
+                title: '🧲 لینک مگنت',
+                sources: ['YTS', '1337x', 'TPB', 'TorrentGalaxy'],
+                steps: [
+                    'یک برنامه تورنت نصب کنید (مثل uTorrent یا qBittorrent)',
+                    'روی لینک مگنت کلیک کنید',
+                    'در برنامه تورنت باز می‌شود',
+                    'دانلود شروع می‌شود'
+                ]
+            }
+        },
+        players: {
+            mobile: ['MX Player', 'VLC for Mobile'],
+            desktop: ['VLC', 'PotPlayer', 'KMPlayer']
+        }
+    });
 });
 
 // Start Express server

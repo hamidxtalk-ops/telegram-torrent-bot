@@ -61,6 +61,26 @@
         <main class="main-content">
             <!-- Home View -->
             <div id="home-view" class="view active">
+                <!-- Quick Access Buttons -->
+                <div class="quick-access">
+                    <button class="quick-btn" data-action="trending">
+                        <span class="quick-icon">🔥</span>
+                        <span>ترندینگ</span>
+                    </button>
+                    <button class="quick-btn" data-action="tv">
+                        <span class="quick-icon">📺</span>
+                        <span>سریال</span>
+                    </button>
+                    <button class="quick-btn" data-action="anime">
+                        <span class="quick-icon">🎌</span>
+                        <span>انیمه</span>
+                    </button>
+                    <button class="quick-btn" data-action="genres">
+                        <span class="quick-icon">🎭</span>
+                        <span>ژانرها</span>
+                    </button>
+                </div>
+
                 <div class="section-header">
                     <h2>🔥 پرطرفدار</h2>
                 </div>
@@ -68,21 +88,40 @@
                     <!-- Populated by JS -->
                 </div>
 
-                <div class="section-header">
-                    <h2>📢 منابع فعال</h2>
+                <div class="section-header" style="margin-top: var(--spacing-lg);">
+                    <h2>📢 منابع فعال (۱۵ منبع)</h2>
                 </div>
                 <div class="sources-list">
-                    <div class="source-badge intl">YTS</div>
-                    <div class="source-badge intl">1337x</div>
-                    <div class="source-badge intl">TorrentGalaxy</div>
-                    <div class="source-badge intl">TPB</div>
-                    <div class="source-badge intl">LimeTorrents</div>
-                    <div class="source-badge persian">ZardFilm</div>
                     <div class="source-badge persian">CoolDL</div>
                     <div class="source-badge persian">UpTVs</div>
+                    <div class="source-badge persian">ZardFilm</div>
                     <div class="source-badge persian">Film2Movie</div>
                     <div class="source-badge telegram">Filmeh</div>
+                    <div class="source-badge telegram">WhenMoviez</div>
+                    <div class="source-badge telegram">FilmBazzan</div>
+                    <div class="source-badge telegram">Filmpok</div>
+                    <div class="source-badge telegram">Film7</div>
+                    <div class="source-badge telegram">MrFilm</div>
+                    <div class="source-badge telegram">SitoFilm</div>
                     <div class="source-badge telegram">CastroFilm</div>
+                    <div class="source-badge intl">1337x</div>
+                    <div class="source-badge intl">TorrentGalaxy</div>
+                    <div class="source-badge intl">LimeTorrents</div>
+                </div>
+            </div>
+
+            <!-- Genres View -->
+            <div id="genres-view" class="view">
+                <div class="section-header">
+                    <button id="genres-back-btn" class="back-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="m9 18 6-6-6-6"></path>
+                        </svg>
+                    </button>
+                    <h2>🎭 انتخاب ژانر</h2>
+                </div>
+                <div id="genres-list" class="genres-grid">
+                    <!-- Populated by JS -->
                 </div>
             </div>
 

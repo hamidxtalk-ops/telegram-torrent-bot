@@ -58,6 +58,9 @@ const elements = {
     resultsView: document.getElementById('results-view'),
     movieView: document.getElementById('movie-view'),
     helpView: document.getElementById('help-view'),
+    genresView: document.getElementById('genres-view'),
+    genresList: document.getElementById('genres-list'),
+    genresBackBtn: document.getElementById('genres-back-btn'),
     trendingMovies: document.getElementById('trending-movies'),
     searchResults: document.getElementById('search-results'),
     resultsTitle: document.getElementById('results-title'),
@@ -73,7 +76,8 @@ const elements = {
     movieGenres: document.getElementById('movie-genres'),
     downloadLinks: document.getElementById('download-links'),
     toast: document.getElementById('toast'),
-    navItems: document.querySelectorAll('.nav-item')
+    navItems: document.querySelectorAll('.nav-item'),
+    quickBtns: document.querySelectorAll('.quick-btn')
 };
 
 // ===================================
@@ -88,6 +92,7 @@ function showView(viewName) {
     elements.resultsView.classList.remove('active');
     elements.movieView.classList.remove('active');
     elements.helpView.classList.remove('active');
+    elements.genresView.classList.remove('active');
 
     // Show requested view
     switch (viewName) {
@@ -102,6 +107,9 @@ function showView(viewName) {
             break;
         case 'help':
             elements.helpView.classList.add('active');
+            break;
+        case 'genres':
+            elements.genresView.classList.add('active');
             break;
     }
 
@@ -181,6 +189,75 @@ async function getTrending() {
     }
 }
 
+async function getGenres() {
+    showView('genres');
+
+    try {
+        const data = await apiRequest('/api/genres');
+        const genres = data.genres || [];
+        renderGenres(genres);
+    } catch (error) {
+        showToast('خطا در دریافت ژانرها');
+    }
+}
+
+async function getByGenre(genreId, genreName) {
+    showView('results');
+    elements.resultsTitle.textContent = `ژانر: ${genreName}`;
+    showLoadingSkeleton(elements.searchResults);
+
+    try {
+        const data = await apiRequest(`/api/genre/${genreId}`);
+        state.searchResults = data.results || [];
+
+        if (state.searchResults.length === 0) {
+            showEmptyState(elements.searchResults, 'فیلمی یافت نشد');
+        } else {
+            renderMovieGrid(elements.searchResults, state.searchResults);
+        }
+    } catch (error) {
+        showEmptyState(elements.searchResults, 'خطا در دریافت فیلم‌ها');
+    }
+}
+
+async function getTV() {
+    showView('results');
+    elements.resultsTitle.textContent = '📺 سریال‌ها';
+    showLoadingSkeleton(elements.searchResults);
+
+    try {
+        const data = await apiRequest('/api/tv');
+        state.searchResults = data.results || [];
+
+        if (state.searchResults.length === 0) {
+            showEmptyState(elements.searchResults, 'سریالی یافت نشد');
+        } else {
+            renderMovieGrid(elements.searchResults, state.searchResults);
+        }
+    } catch (error) {
+        showEmptyState(elements.searchResults, 'خطا در دریافت سریال‌ها');
+    }
+}
+
+async function getAnime() {
+    showView('results');
+    elements.resultsTitle.textContent = '🎌 انیمه';
+    showLoadingSkeleton(elements.searchResults);
+
+    try {
+        const data = await apiRequest('/api/anime');
+        state.searchResults = data.results || [];
+
+        if (state.searchResults.length === 0) {
+            showEmptyState(elements.searchResults, 'انیمه‌ای یافت نشد');
+        } else {
+            renderMovieGrid(elements.searchResults, state.searchResults);
+        }
+    } catch (error) {
+        showEmptyState(elements.searchResults, 'خطا در دریافت انیمه‌ها');
+    }
+}
+
 async function getMovieDetails(movieId) {
     showView('movie');
 
@@ -239,26 +316,55 @@ function renderMovieDetail(movie) {
         `<span class="genre-tag">${typeof g === 'string' ? g : g.name || g}</span>`
     ).join('');
 
-    // Download links
+    // Download links with type badges
     const torrents = movie.torrents || [];
+
+    // Action buttons (Subtitle + Download Guide)
+    let actionsHTML = `
+        <div class="movie-actions">
+            <button class="action-btn subtitle-btn" onclick="searchSubtitles('${escapeHtml(movie.title)}', '${movie.year || ''}')">
+                📝 زیرنویس فارسی
+            </button>
+            <button class="action-btn guide-btn" onclick="showDownloadGuide()">
+                ❓ راهنمای دانلود
+            </button>
+        </div>
+    `;
+
     if (torrents.length === 0) {
-        elements.downloadLinks.innerHTML = `
+        elements.downloadLinks.innerHTML = actionsHTML + `
             <div class="empty-state">
                 <p>لینک دانلود موجود نیست</p>
                 <p style="font-size: 0.8rem; margin-top: 8px;">از طریق بات جستجو کنید</p>
             </div>
         `;
     } else {
-        elements.downloadLinks.innerHTML = torrents.map((torrent, i) => {
-            const isDirectLink = torrent.isDirect || !torrent.magnetLink?.startsWith('magnet:');
-            const isTelegramBot = torrent.isTelegramBot || torrent.magnetLink?.includes('t.me');
+        const linksHTML = torrents.map((torrent, i) => {
+            const isDirectLink = torrent.isDirect || (torrent.magnetLink && !torrent.magnetLink.startsWith('magnet:') && !torrent.magnetLink.includes('t.me'));
+            const isTelegramBot = torrent.isTelegramBot || (torrent.magnetLink && torrent.magnetLink.includes('t.me'));
+            const isMagnet = torrent.magnetLink && torrent.magnetLink.startsWith('magnet:');
+
+            // Determine link type and badge
+            let typeBadge = '';
+            let typeClass = '';
+            if (isTelegramBot) {
+                typeBadge = '📱 تلگرام';
+                typeClass = 'type-telegram';
+            } else if (isDirectLink) {
+                typeBadge = '🔗 مستقیم';
+                typeClass = 'type-direct';
+            } else if (isMagnet) {
+                typeBadge = '🧲 مگنت';
+                typeClass = 'type-torrent';
+            }
 
             return `
                 <a href="${torrent.magnetLink}" 
-                   class="download-btn" 
+                   class="download-btn ${typeClass}"
                    target="_blank"
                    ${isTelegramBot ? 'onclick="handleTelegramLink(event, this)"' : ''}>
                     <div class="download-info">
+                        <span class="download-type-badge">${typeBadge}</span>
                         <span class="download-quality">${torrent.quality || 'نامشخص'}</span>
                         <span class="download-source">${torrent.source || 'نامشخص'}</span>
                     </div>
@@ -266,6 +372,8 @@ function renderMovieDetail(movie) {
                 </a>
             `;
         }).join('');
+
+        elements.downloadLinks.innerHTML = actionsHTML + linksHTML;
     }
 }
 
@@ -416,6 +524,109 @@ async function init() {
     console.log('✅ App ready!');
 }
 
+// ===================================
+// Subtitle & Download Guide Functions
+// ===================================
+
+async function searchSubtitles(title, year) {
+    showToast('🔍 در حال جستجوی زیرنویس...');
+
+    try {
+        const data = await apiRequest(`/api/subtitles?title=${encodeURIComponent(title)}&year=${year}`);
+        const subtitles = data.subtitles || [];
+
+        if (subtitles.length === 0) {
+            // Show fallback search link
+            if (tg) {
+                tg.openLink(data.searchUrl);
+            } else {
+                window.open(data.searchUrl, '_blank');
+            }
+            showToast('زیرنویس یافت نشد - به سایت منتقل شدید');
+            return;
+        }
+
+        // Show subtitle modal
+        const modalHTML = `
+            <div class="modal-overlay" onclick="closeModal(event)">
+                <div class="modal-content" onclick="event.stopPropagation()">
+                    <div class="modal-header">
+                        <h3>📝 زیرنویس فارسی</h3>
+                        <button class="modal-close" onclick="closeModal()">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        ${subtitles.map(sub => `
+                            <a href="${sub.url}" class="subtitle-item" target="_blank">
+                                <span class="subtitle-name">${sub.name.substring(0, 50)}</span>
+                                <span class="subtitle-author">👤 ${sub.author}</span>
+                            </a>
+                        `).join('')}
+                        <a href="${data.searchUrl}" class="subtitle-more" target="_blank">
+                            🔍 جستجوی بیشتر در Subscene
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    } catch (error) {
+        showToast('❌ خطا در جستجوی زیرنویس');
+    }
+}
+
+function showDownloadGuide() {
+    const modalHTML = `
+        <div class="modal-overlay" onclick="closeModal(event)">
+            <div class="modal-content guide-modal" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h3>📥 راهنمای دانلود</h3>
+                    <button class="modal-close" onclick="closeModal()">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="guide-section">
+                        <h4>🔗 لینک مستقیم <span class="guide-badge direct">CoolDL, UpTVs, ZardFilm</span></h4>
+                        <ul>
+                            <li>روی دکمه دانلود کلیک کنید</li>
+                            <li>دانلود مستقیم شروع می‌شود</li>
+                            <li>✅ نیازی به برنامه خاصی نیست</li>
+                        </ul>
+                    </div>
+                    <div class="guide-section">
+                        <h4>📱 بات تلگرام <span class="guide-badge telegram">Filmeh, CastroFilm</span></h4>
+                        <ul>
+                            <li>روی لینک کلیک کنید</li>
+                            <li>به بات تلگرام منتقل می‌شوید</li>
+                            <li>دکمه Start را بزنید</li>
+                            <li>✅ فایل در تلگرام دریافت کنید</li>
+                        </ul>
+                    </div>
+                    <div class="guide-section">
+                        <h4>🧲 لینک مگنت <span class="guide-badge torrent">1337x, YTS</span></h4>
+                        <ul>
+                            <li>برنامه تورنت نصب کنید (uTorrent یا qBittorrent)</li>
+                            <li>روی لینک مگنت کلیک کنید</li>
+                            <li>در برنامه تورنت باز می‌شود</li>
+                            <li>✅ دانلود شروع می‌شود</li>
+                        </ul>
+                    </div>
+                    <div class="guide-section players">
+                        <h4>📱 پخش‌کننده‌های پیشنهادی</h4>
+                        <p><strong>موبایل:</strong> MX Player, VLC</p>
+                        <p><strong>کامپیوتر:</strong> VLC, PotPlayer</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+function closeModal(event) {
+    if (event && event.target !== event.currentTarget) return;
+    const modal = document.querySelector('.modal-overlay');
+    if (modal) modal.remove();
+}
+
 // Start app when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
@@ -423,5 +634,8 @@ if (document.readyState === 'loading') {
     init();
 }
 
-// Make handleTelegramLink available globally
+// Make functions available globally
 window.handleTelegramLink = handleTelegramLink;
+window.searchSubtitles = searchSubtitles;
+window.showDownloadGuide = showDownloadGuide;
+window.closeModal = closeModal;
