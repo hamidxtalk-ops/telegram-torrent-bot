@@ -5,6 +5,9 @@
 
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import scraperZardFilm from './scraperZardFilm.js';
+import scraperCoolDL from './scraperCoolDL.js';
+import scraperUptvs from './scraperUptvs.js';
 
 // Persian movie sites
 const SOURCES = {
@@ -123,19 +126,62 @@ export async function getDownloadLinks(detailUrl) {
 }
 
 /**
- * Search Iranian movies
+ * Search all Iranian sources
  */
 export async function searchIranian(query, limit = 10) {
-    return await searchFilm2Movie(query, limit);
+    console.log(`🇮🇷 Searching all Persian sources for: ${query}`);
+
+    // Search all sources in parallel
+    const [film2movieResults, zardfilmResults, cooldlResults, uptvsResults] = await Promise.allSettled([
+        searchFilm2Movie(query, limit),
+        scraperZardFilm.searchZardFilm(query, limit),
+        scraperCoolDL.searchCoolDL(query, limit),
+        scraperUptvs.searchUptvs(query, limit)
+    ]);
+
+    const results = [];
+
+    // Collect successful results
+    if (film2movieResults.status === 'fulfilled') results.push(...film2movieResults.value);
+    if (zardfilmResults.status === 'fulfilled') results.push(...zardfilmResults.value);
+    if (cooldlResults.status === 'fulfilled') results.push(...cooldlResults.value);
+    if (uptvsResults.status === 'fulfilled') results.push(...uptvsResults.value);
+
+    console.log(`✅ Total Persian results: ${results.length}`);
+    return results.slice(0, limit);
 }
 
 /**
- * Get movie with download links
+ * Get movie with download links from all sources
  */
 export async function searchWithLinks(query, limit = 5) {
+    console.log(`🇮🇷 Searching Persian sources with links: ${query}`);
+
+    // Try all sources in parallel
+    const [film2movieResults, zardfilmResults, cooldlResults, uptvsResults] = await Promise.allSettled([
+        searchFilm2MovieWithLinks(query, 2),
+        scraperZardFilm.searchWithLinks(query, 2),
+        scraperCoolDL.searchWithLinks(query, 2),
+        scraperUptvs.searchWithLinks(query, 2)
+    ]);
+
+    const results = [];
+
+    if (film2movieResults.status === 'fulfilled') results.push(...film2movieResults.value);
+    if (zardfilmResults.status === 'fulfilled') results.push(...zardfilmResults.value);
+    if (cooldlResults.status === 'fulfilled') results.push(...cooldlResults.value);
+    if (uptvsResults.status === 'fulfilled') results.push(...uptvsResults.value);
+
+    console.log(`✅ Total Persian results with links: ${results.length}`);
+    return results.slice(0, limit);
+}
+
+/**
+ * Film2Movie search with links (internal)
+ */
+async function searchFilm2MovieWithLinks(query, limit = 3) {
     const movies = await searchFilm2Movie(query, limit);
 
-    // Get download links for first few results
     const results = [];
     for (const movie of movies.slice(0, 3)) {
         try {
@@ -151,7 +197,6 @@ export async function searchWithLinks(query, limit = 5) {
                     source: 'Film2Movie'
                 }))
             });
-            // Delay between requests
             await new Promise(r => setTimeout(r, 500));
         } catch (e) {
             console.log(`Skipping ${movie.title}: ${e.message}`);
@@ -167,3 +212,4 @@ export default {
     getDownloadLinks,
     searchWithLinks
 };
+

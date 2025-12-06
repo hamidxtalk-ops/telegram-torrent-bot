@@ -404,6 +404,22 @@ export async function handleMovieSelect(bot, query, indexStr) {
                         console.log('GLODLS failed:', e.message);
                     }
                 }
+
+                // If still no torrents, try Iranian sources (Film2Movie, ZardFilm, CoolDL, UpTVs)
+                if (!movie.torrents || movie.torrents.length === 0) {
+                    console.log('GLODLS empty, trying Persian sources...');
+                    try {
+                        const iranianResults = await scraperIranian.searchWithLinks(movie.title, 3);
+                        if (iranianResults && iranianResults.length > 0 && iranianResults[0].torrents.length > 0) {
+                            movie = { ...movie, torrents: iranianResults[0].torrents, source: iranianResults[0].source || 'Persian' };
+                            results[index] = movie;
+                            searchResults.set(`${userId}:results`, results);
+                            console.log(`Persian sources: Found ${movie.torrents.length} download links`);
+                        }
+                    } catch (e) {
+                        console.log('Persian sources failed:', e.message);
+                    }
+                }
             }
         } catch (error) {
             console.error('Failed to fetch torrents:', error.message);
