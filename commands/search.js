@@ -14,6 +14,9 @@ import scraperTGX from '../services/scraperTGX.js';
 import scraperLime from '../services/scraperLime.js';
 import scraperEZTV from '../services/scraperEZTV.js';
 import scraperIranian from '../services/scraperIranian.js';
+import scraperTodayTV from '../services/scraperTodayTV.js';
+import scraperTorrentDL from '../services/scraperTorrentDL.js';
+import scraperGLODLS from '../services/scraperGLODLS.js';
 import subtitleAPI from '../services/subtitleAPI.js';
 import rateLimiter from '../utils/rateLimiter.js';
 import { t } from '../utils/languages.js';
@@ -351,6 +354,54 @@ export async function handleMovieSelect(bot, query, indexStr) {
                         }
                     } catch (e) {
                         console.log('LimeTorrents failed:', e.message);
+                    }
+                }
+
+                // If still no torrents, try TodayTV (for TV series)
+                if (!movie.torrents || movie.torrents.length === 0) {
+                    console.log('LimeTorrents empty, trying TodayTV...');
+                    try {
+                        const todayResults = await scraperTodayTV.searchWithLinks(movie.title, 3);
+                        if (todayResults && todayResults.length > 0 && todayResults[0].torrents.length > 0) {
+                            movie = { ...movie, torrents: todayResults[0].torrents, source: 'TodayTV' };
+                            results[index] = movie;
+                            searchResults.set(`${userId}:results`, results);
+                            console.log(`TodayTV: Found ${movie.torrents.length} download links`);
+                        }
+                    } catch (e) {
+                        console.log('TodayTV failed:', e.message);
+                    }
+                }
+
+                // If still no torrents, try TorrentDownloads
+                if (!movie.torrents || movie.torrents.length === 0) {
+                    console.log('TodayTV empty, trying TorrentDownloads...');
+                    try {
+                        const tdlResults = await scraperTorrentDL.searchWithMagnets(movie.title, 5);
+                        if (tdlResults && tdlResults.length > 0 && tdlResults[0].torrents.length > 0) {
+                            movie = { ...movie, torrents: tdlResults[0].torrents, source: 'TorrentDownloads' };
+                            results[index] = movie;
+                            searchResults.set(`${userId}:results`, results);
+                            console.log(`TorrentDownloads: Found ${movie.torrents.length} torrents`);
+                        }
+                    } catch (e) {
+                        console.log('TorrentDownloads failed:', e.message);
+                    }
+                }
+
+                // If still no torrents, try GLODLS
+                if (!movie.torrents || movie.torrents.length === 0) {
+                    console.log('TorrentDownloads empty, trying GLODLS...');
+                    try {
+                        const gloResults = await scraperGLODLS.searchWithMagnets(movie.title, 5);
+                        if (gloResults && gloResults.length > 0 && gloResults[0].torrents.length > 0) {
+                            movie = { ...movie, torrents: gloResults[0].torrents, source: 'GLODLS' };
+                            results[index] = movie;
+                            searchResults.set(`${userId}:results`, results);
+                            console.log(`GLODLS: Found ${movie.torrents.length} torrents`);
+                        }
+                    } catch (e) {
+                        console.log('GLODLS failed:', e.message);
                     }
                 }
             }
