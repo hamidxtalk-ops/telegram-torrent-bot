@@ -52,7 +52,7 @@ import scraperCoolDL from './services/scraperCoolDL.js';
 import scraperUptvs from './services/scraperUptvs.js';
 import scraperZardFilm from './services/scraperZardFilm.js';
 
-// Search API - Searches ALL sources (Persian + Telegram + Torrents)
+// Search API - Searches ALL sources (Telegram -> YTS -> 1337x -> Iranian -> Others)
 app.get('/api/search', async (req, res) => {
     try {
         const query = req.query.q;
@@ -67,10 +67,11 @@ app.get('/api/search', async (req, res) => {
 
         // Search from ALL sources in parallel
         const [
-            iranianResults,
             telegramResults,
-            tmdbResults,
+            ytsResults,
             x1337Results,
+            iranianResults,
+            tmdbResults,
             tpbResults,
             tgxResults,
             limeResults,
@@ -78,10 +79,11 @@ app.get('/api/search', async (req, res) => {
             torrentDLResults,
             glodlsResults
         ] = await Promise.allSettled([
-            scraperIranian.searchWithLinks(query, 10),
             scraperTelegram.searchWithLinks(query, 10),
+            yts.searchMovies(query, 8),
+            scraper1337x.searchWithMagnets(query, 8),
+            scraperIranian.searchWithLinks(query, 10),
             tmdb.searchMovies(query),
-            scraper1337x.searchWithMagnets(query, 5),
             scraperTPB.searchWithMagnets(query, 5),
             scraperTGX.searchWithMagnets(query, 5),
             scraperLime.searchWithMagnets(query, 5),
@@ -92,30 +94,59 @@ app.get('/api/search', async (req, res) => {
 
         let results = [];
 
-        // 1. Add Iranian/Persian results FIRST (direct download links)
-        if (iranianResults.status === 'fulfilled' && iranianResults.value?.length > 0) {
-            results.push(...iranianResults.value.map(m => ({
-                ...m,
-                sourceType: 'persian'
-            })));
-            console.log(`🇮🇷 Persian sources: ${iranianResults.value.length} results`);
-        }
-
-        // 2. Add Telegram channel results
+        // 1. FIRST: Telegram channels (Filmeh, etc.)
         if (telegramResults.status === 'fulfilled' && telegramResults.value?.length > 0) {
-            const telegramMovies = telegramResults.value.filter(tg =>
-                !results.find(r => r.title?.toLowerCase() === tg.title?.toLowerCase())
-            ).map(m => ({
+            results.push(...telegramResults.value.map(m => ({
                 ...m,
                 sourceType: 'telegram'
-            }));
-            results.push(...telegramMovies);
-            console.log(`📢 Telegram: ${telegramMovies.length} results`);
+            })));
+            console.log(`📢 Telegram: ${telegramResults.value.length} results`);
         }
 
-        // 3. Add torrent results
-        const torrentSources = [
-            { result: x1337Results, name: '1337x' },
+        // 2. SECOND: YTS
+        if (ytsResults.status === 'fulfilled' && ytsResults.value?.length > 0) {
+            const ytsMovies = ytsResults.value.filter(m =>
+                !results.find(r => r.title?.toLowerCase() === m.title?.toLowerCase())
+            ).map(m => ({
+                ...m,
+                source: 'YTS',
+                sourceType: 'torrent'
+            }));
+            results.push(...ytsMovies);
+            console.log(`🎬 YTS: ${ytsMovies.length} results`);
+        }
+
+        // 3. THIRD: 1337x
+        if (x1337Results.status === 'fulfilled' && x1337Results.value?.length > 0) {
+            for (const movie of x1337Results.value) {
+                const existing = results.find(r => r.title?.toLowerCase() === movie.title?.toLowerCase());
+                if (existing && existing.torrents) {
+                    existing.torrents.push(...(movie.torrents || []));
+                } else if (!existing) {
+                    results.push({
+                        ...movie,
+                        source: '1337x',
+                        sourceType: 'torrent'
+                    });
+                }
+            }
+            console.log(`🧲 1337x: ${x1337Results.value.length} results`);
+        }
+
+        // 4. FOURTH: Iranian sites (CoolDL, UpTVs, ZardFilm, Film2Movie)
+        if (iranianResults.status === 'fulfilled' && iranianResults.value?.length > 0) {
+            const iranianMovies = iranianResults.value.filter(m =>
+                !results.find(r => r.title?.toLowerCase() === m.title?.toLowerCase())
+            ).map(m => ({
+                ...m,
+                sourceType: 'persian'
+            }));
+            results.push(...iranianMovies);
+            console.log(`🇮🇷 Iranian: ${iranianMovies.length} results`);
+        }
+
+        // 5. FIFTH: Other torrent sites
+        const otherTorrents = [
             { result: tpbResults, name: 'TPB' },
             { result: tgxResults, name: 'TorrentGalaxy' },
             { result: limeResults, name: 'LimeTorrents' },
@@ -124,16 +155,13 @@ app.get('/api/search', async (req, res) => {
             { result: glodlsResults, name: 'GLODLS' }
         ];
 
-        for (const { result, name } of torrentSources) {
+        for (const { result, name } of otherTorrents) {
             if (result.status === 'fulfilled' && result.value?.length > 0) {
-                const grouped = result.value;
-                for (const movie of grouped) {
-                    // Check if movie already exists
+                for (const movie of result.value) {
                     const existing = results.find(r =>
                         r.title?.toLowerCase() === movie.title?.toLowerCase()
                     );
                     if (existing && existing.torrents) {
-                        // Add torrents to existing movie
                         existing.torrents.push(...(movie.torrents || []));
                     } else if (!existing) {
                         results.push({
@@ -143,11 +171,10 @@ app.get('/api/search', async (req, res) => {
                         });
                     }
                 }
-                console.log(`🧲 ${name}: ${grouped.length} results`);
             }
         }
 
-        // 4. Add TMDB results for movie info
+        // 6. LAST: TMDB for movie info only
         if (tmdbResults.status === 'fulfilled' && tmdbResults.value?.length > 0) {
             const tmdbMovies = tmdbResults.value
                 .filter(movie => !results.find(r => r.title?.toLowerCase() === movie.title?.toLowerCase()))
