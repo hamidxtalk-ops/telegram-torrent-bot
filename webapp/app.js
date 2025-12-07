@@ -385,41 +385,63 @@ function renderMovieDetail(movie) {
             </div>
         `;
     } else {
-        const linksHTML = torrents.map((torrent, i) => {
-            const isDirectLink = torrent.isDirect || (torrent.magnetLink && !torrent.magnetLink.startsWith('magnet:') && !torrent.magnetLink.includes('t.me'));
+        // Filter: Only Telegram and Torrent links, only 5 quality levels
+        const allowedQualities = ['360p', '480p', '720p', '1080p', '2160p', '4K', '360', '480', '720', '1080', '2160'];
+
+        const filteredTorrents = torrents.filter(torrent => {
             const isTelegramBot = torrent.isTelegramBot || (torrent.magnetLink && torrent.magnetLink.includes('t.me'));
             const isMagnet = torrent.magnetLink && torrent.magnetLink.startsWith('magnet:');
+            const isDirectLink = torrent.isDirect || (torrent.magnetLink && !torrent.magnetLink.startsWith('magnet:') && !torrent.magnetLink.includes('t.me'));
 
-            // Determine link type and badge
-            let typeBadge = '';
-            let typeClass = '';
-            if (isTelegramBot) {
-                typeBadge = '📱 تلگرام';
-                typeClass = 'type-telegram';
-            } else if (isDirectLink) {
-                typeBadge = '🔗 مستقیم';
-                typeClass = 'type-direct';
-            } else if (isMagnet) {
-                typeBadge = '🧲 مگنت';
-                typeClass = 'type-torrent';
-            }
+            // Only allow Telegram and Torrent (magnet) links
+            if (isDirectLink) return false;
+            if (!isTelegramBot && !isMagnet) return false;
 
-            return `
-                <a href="${torrent.magnetLink}" 
-                   class="download-btn ${typeClass}"
-                   target="_blank"
-                   ${isTelegramBot ? 'onclick="handleTelegramLink(event, this)"' : ''}>
-                    <div class="download-info">
-                        <span class="download-type-badge">${typeBadge}</span>
-                        <span class="download-quality">${torrent.quality || 'نامشخص'}</span>
-                        <span class="download-source">${torrent.source || 'نامشخص'}</span>
-                    </div>
-                    <span class="download-size">${torrent.size || ''}</span>
-                </a>
+            // Check quality
+            const quality = (torrent.quality || '').toUpperCase();
+            return allowedQualities.some(q => quality.includes(q.toUpperCase()));
+        });
+
+        if (filteredTorrents.length === 0) {
+            elements.downloadLinks.innerHTML = actionsHTML + `
+                <div class="empty-state">
+                    <p>لینک دانلود موجود نیست</p>
+                    <p style="font-size: 0.8rem; margin-top: 8px;">از طریق بات جستجو کنید</p>
+                </div>
             `;
-        }).join('');
+        } else {
+            const linksHTML = filteredTorrents.map((torrent, i) => {
+                const isTelegramBot = torrent.isTelegramBot || (torrent.magnetLink && torrent.magnetLink.includes('t.me'));
+                const isMagnet = torrent.magnetLink && torrent.magnetLink.startsWith('magnet:');
 
-        elements.downloadLinks.innerHTML = actionsHTML + linksHTML;
+                // Determine link type and badge
+                let typeBadge = '';
+                let typeClass = '';
+                if (isTelegramBot) {
+                    typeBadge = '📱 تلگرام';
+                    typeClass = 'type-telegram';
+                } else if (isMagnet) {
+                    typeBadge = '🧲 تورنت';
+                    typeClass = 'type-torrent';
+                }
+
+                return `
+                    <a href="${torrent.magnetLink}" 
+                       class="download-btn ${typeClass}"
+                       target="_blank"
+                       ${isTelegramBot ? 'onclick="handleTelegramLink(event, this)"' : ''}>
+                        <div class="download-info">
+                            <span class="download-type-badge">${typeBadge}</span>
+                            <span class="download-quality">${torrent.quality || 'نامشخص'}</span>
+                            <span class="download-source">${torrent.source || 'نامشخص'}</span>
+                        </div>
+                        <span class="download-size">${torrent.size || ''}</span>
+                    </a>
+                `;
+            }).join('');
+
+            elements.downloadLinks.innerHTML = actionsHTML + linksHTML;
+        }
     }
 }
 
