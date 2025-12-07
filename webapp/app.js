@@ -385,7 +385,8 @@ function renderMovieDetail(movie) {
             </div>
         `;
     } else {
-        // Filter: Only Telegram and Torrent links, only 5 quality levels
+        // Filter: Only Telegram and Torrent links
+        // For Torrent links: only 5 quality levels
         const allowedQualities = ['360p', '480p', '720p', '1080p', '2160p', '4K', '360', '480', '720', '1080', '2160'];
 
         const filteredTorrents = torrents.filter(torrent => {
@@ -393,13 +394,19 @@ function renderMovieDetail(movie) {
             const isMagnet = torrent.magnetLink && torrent.magnetLink.startsWith('magnet:');
             const isDirectLink = torrent.isDirect || (torrent.magnetLink && !torrent.magnetLink.startsWith('magnet:') && !torrent.magnetLink.includes('t.me'));
 
-            // Only allow Telegram and Torrent (magnet) links
+            // Exclude direct links
             if (isDirectLink) return false;
-            if (!isTelegramBot && !isMagnet) return false;
 
-            // Check quality
-            const quality = (torrent.quality || '').toUpperCase();
-            return allowedQualities.some(q => quality.includes(q.toUpperCase()));
+            // Telegram links: always allow
+            if (isTelegramBot) return true;
+
+            // Torrent (magnet) links: check quality
+            if (isMagnet) {
+                const quality = (torrent.quality || '').toUpperCase();
+                return allowedQualities.some(q => quality.includes(q.toUpperCase()));
+            }
+
+            return false;
         });
 
         if (filteredTorrents.length === 0) {
