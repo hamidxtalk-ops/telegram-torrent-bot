@@ -772,6 +772,10 @@ async function main() {
                                 [
                                     { text: '🎭 ژانرها', callback_data: 'browse' },
                                     { text: '📜 تاریخچه', callback_data: 'history' }
+                                ],
+                                [
+                                    { text: '🌐 زبان / Language', callback_data: 'select_language' },
+                                    { text: '📞 پشتیبانی', url: 'https://t.me/Mound84' }
                                 ]
                             ]
                         }

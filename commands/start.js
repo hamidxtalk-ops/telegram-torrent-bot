@@ -54,7 +54,8 @@ export async function handleStart(bot, msg) {
                     { text: '📜 تاریخچه', callback_data: 'history' }
                 ],
                 [
-                    { text: '🌐 زبان / Language', callback_data: 'select_language' }
+                    { text: '🌐 زبان / Language', callback_data: 'select_language' },
+                    { text: '📞 پشتیبانی', url: 'https://t.me/Mound84' }
                 ]
             ]
         }
@@ -107,6 +108,10 @@ export async function handleAcceptTerms(bot, query) {
                 [
                     { text: '🎭 ژانرها', callback_data: 'browse' },
                     { text: '📜 تاریخچه', callback_data: 'history' }
+                ],
+                [
+                    { text: '🌐 زبان / Language', callback_data: 'select_language' },
+                    { text: '📞 پشتیبانی', url: 'https://t.me/Mound84' }
                 ]
             ]
         }
@@ -175,6 +180,10 @@ export async function handleLanguageChange(bot, query, langCode) {
                 [
                     { text: '🎭 ژانرها', callback_data: 'browse' },
                     { text: '📜 تاریخچه', callback_data: 'history' }
+                ],
+                [
+                    { text: '🌐 زبان / Language', callback_data: 'select_language' },
+                    { text: '📞 پشتیبانی', url: 'https://t.me/Mound84' }
                 ]
             ]
         }
