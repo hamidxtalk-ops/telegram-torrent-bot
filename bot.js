@@ -93,19 +93,23 @@ app.get('/api/search', async (req, res) => {
         ]);
 
         let results = [];
+        let hasMainResults = false;
 
-        // 1. FIRST: Telegram channels (Filmeh, etc.)
+        // 1. FIRST: Telegram channels (Filmeh, etc.) - PRIORITY
         if (telegramResults.status === 'fulfilled' && telegramResults.value?.length > 0) {
-            results.push(...telegramResults.value.map(m => ({
+            const telegramMovies = telegramResults.value.filter(m => m.torrents && m.torrents.length > 0);
+            results.push(...telegramMovies.map(m => ({
                 ...m,
                 sourceType: 'telegram'
             })));
-            console.log(`📢 Telegram: ${telegramResults.value.length} results`);
+            if (telegramMovies.length > 0) hasMainResults = true;
+            console.log(`📢 Telegram: ${telegramMovies.length} results with links`);
         }
 
         // 2. SECOND: YTS
         if (ytsResults.status === 'fulfilled' && ytsResults.value?.length > 0) {
             const ytsMovies = ytsResults.value.filter(m =>
+                m.torrents && m.torrents.length > 0 &&
                 !results.find(r => r.title?.toLowerCase() === m.title?.toLowerCase())
             ).map(m => ({
                 ...m,
@@ -113,12 +117,15 @@ app.get('/api/search', async (req, res) => {
                 sourceType: 'torrent'
             }));
             results.push(...ytsMovies);
-            console.log(`🎬 YTS: ${ytsMovies.length} results`);
+            if (ytsMovies.length > 0) hasMainResults = true;
+            console.log(`🎬 YTS: ${ytsMovies.length} results with links`);
         }
 
         // 3. THIRD: 1337x
         if (x1337Results.status === 'fulfilled' && x1337Results.value?.length > 0) {
             for (const movie of x1337Results.value) {
+                if (!movie.torrents || movie.torrents.length === 0) continue;
+
                 const existing = results.find(r => r.title?.toLowerCase() === movie.title?.toLowerCase());
                 if (existing && existing.torrents) {
                     existing.torrents.push(...(movie.torrents || []));
@@ -128,24 +135,13 @@ app.get('/api/search', async (req, res) => {
                         source: '1337x',
                         sourceType: 'torrent'
                     });
+                    hasMainResults = true;
                 }
             }
-            console.log(`🧲 1337x: ${x1337Results.value.length} results`);
+            console.log(`🧲 1337x: processed`);
         }
 
-        // 4. FOURTH: Iranian sites (CoolDL, UpTVs, ZardFilm, Film2Movie)
-        if (iranianResults.status === 'fulfilled' && iranianResults.value?.length > 0) {
-            const iranianMovies = iranianResults.value.filter(m =>
-                !results.find(r => r.title?.toLowerCase() === m.title?.toLowerCase())
-            ).map(m => ({
-                ...m,
-                sourceType: 'persian'
-            }));
-            results.push(...iranianMovies);
-            console.log(`🇮🇷 Iranian: ${iranianMovies.length} results`);
-        }
-
-        // 5. FIFTH: Other torrent sites
+        // 4. FOURTH: Other torrent sites
         const otherTorrents = [
             { result: tpbResults, name: 'TPB' },
             { result: tgxResults, name: 'TorrentGalaxy' },
@@ -158,6 +154,8 @@ app.get('/api/search', async (req, res) => {
         for (const { result, name } of otherTorrents) {
             if (result.status === 'fulfilled' && result.value?.length > 0) {
                 for (const movie of result.value) {
+                    if (!movie.torrents || movie.torrents.length === 0) continue;
+
                     const existing = results.find(r =>
                         r.title?.toLowerCase() === movie.title?.toLowerCase()
                     );
@@ -169,13 +167,29 @@ app.get('/api/search', async (req, res) => {
                             sourceType: 'torrent',
                             source: movie.source || name
                         });
+                        hasMainResults = true;
                     }
                 }
             }
         }
 
-        // 6. LAST: TMDB for movie info only
-        if (tmdbResults.status === 'fulfilled' && tmdbResults.value?.length > 0) {
+        // 5. FIFTH: Iranian sites - ONLY if no results from Telegram/Torrents
+        if (!hasMainResults && iranianResults.status === 'fulfilled' && iranianResults.value?.length > 0) {
+            const iranianMovies = iranianResults.value.filter(m =>
+                m.torrents && m.torrents.length > 0 &&
+                !results.find(r => r.title?.toLowerCase() === m.title?.toLowerCase())
+            ).map(m => ({
+                ...m,
+                sourceType: 'persian'
+            }));
+            results.push(...iranianMovies);
+            console.log(`🇮🇷 Iranian (fallback): ${iranianMovies.length} results with links`);
+        } else if (hasMainResults) {
+            console.log(`⏭️ Skipping Iranian sites - main sources found`);
+        }
+
+        // 6. LAST: TMDB for movie info only (if no results with download links)
+        if (results.length === 0 && tmdbResults.status === 'fulfilled' && tmdbResults.value?.length > 0) {
             const tmdbMovies = tmdbResults.value
                 .filter(movie => !results.find(r => r.title?.toLowerCase() === movie.title?.toLowerCase()))
                 .map((movie, index) => ({
@@ -191,6 +205,7 @@ app.get('/api/search', async (req, res) => {
                     sourceType: 'info'
                 }));
             results.push(...tmdbMovies);
+            console.log(`📋 TMDB info: ${tmdbMovies.length} results (no downloads found)`);
         }
 
         console.log(`✅ Total search results: ${results.length}`);

@@ -189,6 +189,23 @@ async function getTrending() {
     }
 }
 
+async function getTrendingResults() {
+    showLoadingSkeleton(elements.searchResults);
+
+    try {
+        const data = await apiRequest('/api/trending');
+        state.searchResults = data.results || [];
+
+        if (state.searchResults.length === 0) {
+            showEmptyState(elements.searchResults, 'فیلمی یافت نشد');
+        } else {
+            renderMovieGrid(elements.searchResults, state.searchResults);
+        }
+    } catch (error) {
+        showEmptyState(elements.searchResults, 'خطا در دریافت فیلم‌ها');
+    }
+}
+
 async function getGenres() {
     showView('genres');
 
@@ -427,6 +444,37 @@ function showEmptyState(container, message) {
     `;
 }
 
+function renderGenres(genres) {
+    const genreIcons = {
+        28: '💥', // Action
+        35: '😂', // Comedy
+        18: '🎭', // Drama
+        27: '👻', // Horror
+        878: '🚀', // Sci-Fi
+        10749: '💕', // Romance
+        53: '😱', // Thriller
+        16: '🎨', // Animation
+        80: '🔪', // Crime
+        99: '📹' // Documentary
+    };
+
+    elements.genresList.innerHTML = genres.map(genre => `
+        <div class="genre-card" data-genre-id="${genre.id}" data-genre-name="${genre.name}">
+            <span class="genre-icon">${genreIcons[genre.id] || '🎬'}</span>
+            <span class="genre-name">${genre.name}</span>
+        </div>
+    `).join('');
+
+    // Add click listeners
+    elements.genresList.querySelectorAll('.genre-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const genreId = card.dataset.genreId;
+            const genreName = card.dataset.genreName;
+            getByGenre(genreId, genreName);
+        });
+    });
+}
+
 // ===================================
 // Utility Functions
 // ===================================
@@ -506,6 +554,36 @@ function setupEventListeners() {
             }
         });
     });
+
+    // Quick access buttons
+    elements.quickBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const action = btn.dataset.action;
+            switch (action) {
+                case 'trending':
+                    showView('results');
+                    elements.resultsTitle.textContent = '🔥 ترندینگ';
+                    getTrendingResults();
+                    break;
+                case 'tv':
+                    getTV();
+                    break;
+                case 'anime':
+                    getAnime();
+                    break;
+                case 'genres':
+                    getGenres();
+                    break;
+            }
+        });
+    });
+
+    // Genres back button
+    if (elements.genresBackBtn) {
+        elements.genresBackBtn.addEventListener('click', () => {
+            showView('home');
+        });
+    }
 
     // Telegram back button
     if (tg) {
