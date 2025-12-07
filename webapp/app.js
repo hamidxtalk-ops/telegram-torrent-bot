@@ -691,14 +691,6 @@ function showDownloadGuide() {
                 </div>
                 <div class="modal-body">
                     <div class="guide-section">
-                        <h4>🔗 لینک مستقیم <span class="guide-badge direct">CoolDL, UpTVs, ZardFilm</span></h4>
-                        <ul>
-                            <li>روی دکمه دانلود کلیک کنید</li>
-                            <li>دانلود مستقیم شروع می‌شود</li>
-                            <li>✅ نیازی به برنامه خاصی نیست</li>
-                        </ul>
-                    </div>
-                    <div class="guide-section">
                         <h4>📱 بات تلگرام <span class="guide-badge telegram">Filmeh, CastroFilm</span></h4>
                         <ul>
                             <li>روی لینک کلیک کنید</li>
