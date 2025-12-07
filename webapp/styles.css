@@ -148,6 +148,37 @@ body {
     padding: var(--spacing-md);
     border-bottom: 1px solid var(--border-color);
     z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Support Button */
+.support-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    background: rgba(139, 92, 246, 0.2);
+    border: 1px solid rgba(139, 92, 246, 0.4);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    text-decoration: none;
+    color: #a78bfa;
+    font-size: 0.85rem;
+    transition: all var(--transition-fast);
+}
+
+.support-btn:hover {
+    background: rgba(139, 92, 246, 0.3);
+    border-color: rgba(139, 92, 246, 0.6);
+}
+
+.support-icon {
+    font-size: 1rem;
+}
+
+.support-text {
+    font-weight: 500;
 }
 
 .logo {
