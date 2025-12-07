@@ -52,7 +52,7 @@ import scraperCoolDL from './services/scraperCoolDL.js';
 import scraperUptvs from './services/scraperUptvs.js';
 import scraperZardFilm from './services/scraperZardFilm.js';
 
-// Search API - Searches ALL sources (Telegram -> YTS -> 1337x -> Iranian -> Others)
+// Search API - Searches Telegram channels and Torrent sites only
 app.get('/api/search', async (req, res) => {
     try {
         const query = req.query.q;
@@ -65,12 +65,11 @@ app.get('/api/search', async (req, res) => {
         // Import Telegram scraper
         const scraperTelegram = (await import('./services/scraperTelegramChannels.js')).default;
 
-        // Search from ALL sources in parallel
+        // Search from Telegram and Torrent sources in parallel
         const [
             telegramResults,
             ytsResults,
             x1337Results,
-            iranianResults,
             tmdbResults,
             tpbResults,
             tgxResults,
@@ -82,7 +81,6 @@ app.get('/api/search', async (req, res) => {
             scraperTelegram.searchWithLinks(query, 10),
             yts.searchMovies(query, 8),
             scraper1337x.searchWithMagnets(query, 8),
-            scraperIranian.searchWithLinks(query, 10),
             tmdb.searchMovies(query),
             scraperTPB.searchWithMagnets(query, 5),
             scraperTGX.searchWithMagnets(query, 5),
@@ -93,7 +91,6 @@ app.get('/api/search', async (req, res) => {
         ]);
 
         let results = [];
-        let hasMainResults = false;
 
         // 1. FIRST: Telegram channels (Filmeh, etc.) - PRIORITY
         if (telegramResults.status === 'fulfilled' && telegramResults.value?.length > 0) {
@@ -102,7 +99,6 @@ app.get('/api/search', async (req, res) => {
                 ...m,
                 sourceType: 'telegram'
             })));
-            if (telegramMovies.length > 0) hasMainResults = true;
             console.log(`📢 Telegram: ${telegramMovies.length} results with links`);
         }
 
@@ -117,7 +113,6 @@ app.get('/api/search', async (req, res) => {
                 sourceType: 'torrent'
             }));
             results.push(...ytsMovies);
-            if (ytsMovies.length > 0) hasMainResults = true;
             console.log(`🎬 YTS: ${ytsMovies.length} results with links`);
         }
 
@@ -135,7 +130,6 @@ app.get('/api/search', async (req, res) => {
                         source: '1337x',
                         sourceType: 'torrent'
                     });
-                    hasMainResults = true;
                 }
             }
             console.log(`🧲 1337x: processed`);
@@ -167,25 +161,9 @@ app.get('/api/search', async (req, res) => {
                             sourceType: 'torrent',
                             source: movie.source || name
                         });
-                        hasMainResults = true;
                     }
                 }
             }
-        }
-
-        // 5. FIFTH: Iranian sites - ONLY if no results from Telegram/Torrents
-        if (!hasMainResults && iranianResults.status === 'fulfilled' && iranianResults.value?.length > 0) {
-            const iranianMovies = iranianResults.value.filter(m =>
-                m.torrents && m.torrents.length > 0 &&
-                !results.find(r => r.title?.toLowerCase() === m.title?.toLowerCase())
-            ).map(m => ({
-                ...m,
-                sourceType: 'persian'
-            }));
-            results.push(...iranianMovies);
-            console.log(`🇮🇷 Iranian (fallback): ${iranianMovies.length} results with links`);
-        } else if (hasMainResults) {
-            console.log(`⏭️ Skipping Iranian sites - main sources found`);
         }
 
         // 6. LAST: TMDB for movie info only (if no results with download links)
