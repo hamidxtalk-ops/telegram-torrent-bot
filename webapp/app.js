@@ -891,11 +891,10 @@ async function searchSubtitles(title, year) {
     showToast('🔍 در حال جستجوی زیرنویس...');
 
     try {
-        const data = await apiRequest(`/ api / subtitles ? title = ${encodeURIComponent(title)}& year=${year} `);
+        const data = await apiRequest(`/api/subtitles?title=${encodeURIComponent(title)}&year=${year}`);
         const subtitles = data.subtitles || [];
 
         if (subtitles.length === 0) {
-            // Show fallback search link
             if (tg) {
                 tg.openLink(data.searchUrl);
             } else {
@@ -905,28 +904,31 @@ async function searchSubtitles(title, year) {
             return;
         }
 
-        // Show subtitle modal
+        // Remove existing modal first
+        const existingModal = document.querySelector('.modal-overlay');
+        if (existingModal) existingModal.remove();
+
         const modalHTML = `
-                < div class="modal-overlay" onclick = "closeModal(event)" >
-                    <div class="modal-content" onclick="event.stopPropagation()">
-                        <div class="modal-header">
-                            <h3>📝 زیرنویس فارسی</h3>
-                            <button class="modal-close" onclick="closeModal()">✕</button>
-                        </div>
-                        <div class="modal-body">
-                            ${subtitles.map(sub => `
-                            <a href="${sub.url}" class="subtitle-item" target="_blank">
-                                <span class="subtitle-name">${sub.name.substring(0, 50)}</span>
-                                <span class="subtitle-author">👤 ${sub.author}</span>
+            <div class="modal-overlay" onclick="this.remove()">
+                <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 360px;">
+                    <div class="modal-header">
+                        <h3>📝 زیرنویس فارسی</h3>
+                        <button class="modal-close" onclick="document.querySelector('.modal-overlay').remove()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        ${subtitles.map(sub => `
+                            <a href="${sub.url}" class="subtitle-item" target="_blank" style="display:block;padding:12px;margin-bottom:8px;background:var(--bg-secondary);border-radius:10px;text-decoration:none;">
+                                <span style="display:block;color:var(--text-primary);font-weight:500;">${sub.name.substring(0, 50)}</span>
+                                <span style="font-size:0.8rem;color:var(--text-muted);">👤 ${sub.author}</span>
                             </a>
                         `).join('')}
-                            <a href="${data.searchUrl}" class="subtitle-more" target="_blank">
-                                🔍 جستجوی بیشتر در Subscene
-                            </a>
-                        </div>
+                        <a href="${data.searchUrl}" target="_blank" style="display:block;text-align:center;padding:12px;color:var(--accent-primary);text-decoration:none;">
+                            🔍 جستجوی بیشتر
+                        </a>
                     </div>
-            </div >
-                `;
+                </div>
+            </div>
+        `;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     } catch (error) {
         showToast('❌ خطا در جستجوی زیرنویس');
@@ -934,41 +936,26 @@ async function searchSubtitles(title, year) {
 }
 
 function showDownloadGuide() {
+    // Remove existing modal first
+    const existingModal = document.querySelector('.modal-overlay');
+    if (existingModal) existingModal.remove();
+
     const modalHTML = `
-                < div class="modal-overlay" onclick = "closeModal(event)" >
-                    <div class="modal-content guide-modal" onclick="event.stopPropagation()">
-                        <div class="modal-header">
-                            <h3>📥 راهنمای دانلود</h3>
-                            <button class="modal-close" onclick="closeModal()">✕</button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="guide-section">
-                                <h4>📱 بات تلگرام <span class="guide-badge telegram">Filmeh, CastroFilm</span></h4>
-                                <ul>
-                                    <li>روی لینک کلیک کنید</li>
-                                    <li>به بات تلگرام منتقل می‌شوید</li>
-                                    <li>دکمه Start را بزنید</li>
-                                    <li>✅ فایل در تلگرام دریافت کنید</li>
-                                </ul>
-                            </div>
-                            <div class="guide-section">
-                                <h4>🧲 لینک مگنت <span class="guide-badge torrent">1337x, YTS</span></h4>
-                                <ul>
-                                    <li>برنامه تورنت نصب کنید (uTorrent یا qBittorrent)</li>
-                                    <li>روی لینک مگنت کلیک کنید</li>
-                                    <li>در برنامه تورنت باز می‌شود</li>
-                                    <li>✅ دانلود شروع می‌شود</li>
-                                </ul>
-                            </div>
-                            <div class="guide-section players">
-                                <h4>📱 پخش‌کننده‌های پیشنهادی</h4>
-                                <p><strong>موبایل:</strong> MX Player, VLC</p>
-                                <p><strong>کامپیوتر:</strong> VLC, PotPlayer</p>
-                            </div>
-                        </div>
-                    </div>
-        </div >
-                `;
+        <div class="modal-overlay" onclick="this.remove()">
+            <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 340px;">
+                <div class="modal-header">
+                    <h3>📥 راهنمای دانلود</h3>
+                    <button class="modal-close" onclick="document.querySelector('.modal-overlay').remove()">×</button>
+                </div>
+                <div class="modal-body" style="font-size: 0.9rem; line-height: 1.8;">
+                    <p><strong>🧲 تورنت:</strong></p>
+                    <p style="color: var(--text-secondary); margin-bottom: 12px;">لینک را کپی کنید و در نرم‌افزار تورنت paste کنید</p>
+                    <p><strong>📱 تلگرام:</strong></p>
+                    <p style="color: var(--text-secondary);">با کلیک روی لینک، به بات تلگرام منتقل می‌شوید</p>
+                </div>
+            </div>
+        </div>
+    `;
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
