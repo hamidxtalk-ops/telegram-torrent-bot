@@ -301,69 +301,33 @@ app.get('/api/genre/:id', async (req, res) => {
     }
 });
 
-// TV Series API - with torrent search  
+// TV Series API - FAST (no torrent search, instant)
 app.get('/api/tv', async (req, res) => {
     try {
         console.log('📺 API TV series');
         const tvShows = await tmdb.getPopularTV();
 
-        // Import Telegram scraper
-        const scraperTelegram = (await import('./services/scraperTelegramChannels.js')).default;
+        // Return TMDB data instantly - torrents fetched when user clicks
+        const results = tvShows.slice(0, 20).map((show, index) => ({
+            id: show.id || index,
+            title: show.name || show.title,
+            year: show.first_air_date?.substring(0, 4),
+            rating: show.vote_average?.toFixed(1),
+            poster: show.poster_path ? `https://image.tmdb.org/t/p/w342${show.poster_path}` : null,
+            posterLarge: show.poster_path ? `https://image.tmdb.org/t/p/w500${show.poster_path}` : null,
+            overview: show.overview,
+            mediaType: 'tv',
+            torrents: []
+        }));
 
-        // Get torrents for first 20 shows in parallel (increased from 10)
-        const showsWithTorrents = await Promise.all(
-            tvShows.slice(0, 20).map(async (show, index) => {
-                const title = show.name || show.title;
-                let torrents = [];
-
-                try {
-                    // Search Telegram first, then 1337x
-                    const [telegramRes, x1337Res] = await Promise.allSettled([
-                        scraperTelegram.searchWithLinks(title, 3).catch(() => []),
-                        scraper1337x.searchWithMagnets(title, 3).catch(() => [])
-                    ]);
-
-                    // Add Telegram results (priority)
-                    if (telegramRes.status === 'fulfilled' && telegramRes.value?.[0]?.torrents) {
-                        torrents.push(...telegramRes.value[0].torrents.map(t => ({
-                            ...t,
-                            source: t.source || 'Telegram',
-                            type: 'telegram'
-                        })));
-                    }
-
-                    // Add 1337x results
-                    if (x1337Res.status === 'fulfilled' && x1337Res.value?.[0]?.torrents) {
-                        torrents.push(...x1337Res.value[0].torrents.map(t => ({
-                            ...t,
-                            source: '1337x',
-                            type: 'torrent'
-                        })));
-                    }
-                } catch (e) { }
-
-                return {
-                    id: show.id || index,
-                    title,
-                    year: show.first_air_date?.substring(0, 4),
-                    rating: show.vote_average?.toFixed(1),
-                    poster: show.poster_path ? `https://image.tmdb.org/t/p/w342${show.poster_path}` : null,
-                    posterLarge: show.poster_path ? `https://image.tmdb.org/t/p/w500${show.poster_path}` : null,
-                    overview: show.overview,
-                    mediaType: 'tv',
-                    torrents
-                };
-            })
-        );
-
-        res.json({ results: showsWithTorrents });
+        res.json({ results });
     } catch (error) {
         console.error('API TV error:', error);
         res.status(500).json({ error: 'Failed to get TV series', results: [] });
     }
 });
 
-// Anime API - with torrent search
+// Anime API - FAST (no torrent search, instant)
 app.get('/api/anime', async (req, res) => {
     try {
         console.log('🎌 API Anime');
@@ -378,66 +342,20 @@ app.get('/api/anime', async (req, res) => {
         if (animeMovies.status === 'fulfilled') allAnime.push(...animeMovies.value);
         if (animeTV.status === 'fulfilled') allAnime.push(...animeTV.value);
 
-        // Import Telegram scraper
-        const scraperTelegram = (await import('./services/scraperTelegramChannels.js')).default;
+        // Return TMDB data instantly - torrents fetched when user clicks
+        const results = allAnime.slice(0, 20).map((show, index) => ({
+            id: show.id || index,
+            title: show.title || show.name,
+            year: show.release_date?.substring(0, 4) || show.first_air_date?.substring(0, 4),
+            rating: show.vote_average?.toFixed(1),
+            poster: show.poster_path ? `https://image.tmdb.org/t/p/w342${show.poster_path}` : null,
+            posterLarge: show.poster_path ? `https://image.tmdb.org/t/p/w500${show.poster_path}` : null,
+            overview: show.overview,
+            mediaType: 'anime',
+            torrents: []
+        }));
 
-        // Get torrents for first 20 anime in parallel
-        const animeWithTorrents = await Promise.all(
-            allAnime.slice(0, 20).map(async (show, index) => {
-                const title = show.title || show.name;
-                let torrents = [];
-
-                try {
-                    // Search from multiple sources
-                    const [telegramRes, nyaaRes, x1337Res] = await Promise.allSettled([
-                        scraperTelegram.searchWithLinks(title, 3).catch(() => []),
-                        scraperNyaa.searchWithMagnets(title, 3).catch(() => []),
-                        scraper1337x.searchWithMagnets(title + ' anime', 2).catch(() => [])
-                    ]);
-
-                    // Add Telegram results (priority)
-                    if (telegramRes.status === 'fulfilled' && telegramRes.value?.[0]?.torrents) {
-                        torrents.push(...telegramRes.value[0].torrents.map(t => ({
-                            ...t,
-                            source: t.source || 'Telegram',
-                            type: 'telegram'
-                        })));
-                    }
-
-                    // Add Nyaa results (specialized for anime)
-                    if (nyaaRes.status === 'fulfilled' && nyaaRes.value?.[0]?.torrents) {
-                        torrents.push(...nyaaRes.value[0].torrents.map(t => ({
-                            ...t,
-                            source: 'Nyaa',
-                            type: 'torrent'
-                        })));
-                    }
-
-                    // Add 1337x results
-                    if (x1337Res.status === 'fulfilled' && x1337Res.value?.[0]?.torrents) {
-                        torrents.push(...x1337Res.value[0].torrents.map(t => ({
-                            ...t,
-                            source: '1337x',
-                            type: 'torrent'
-                        })));
-                    }
-                } catch (e) { }
-
-                return {
-                    id: show.id || index,
-                    title,
-                    year: show.release_date?.substring(0, 4) || show.first_air_date?.substring(0, 4),
-                    rating: show.vote_average?.toFixed(1),
-                    poster: show.poster_path ? `https://image.tmdb.org/t/p/w342${show.poster_path}` : null,
-                    posterLarge: show.poster_path ? `https://image.tmdb.org/t/p/w500${show.poster_path}` : null,
-                    overview: show.overview,
-                    mediaType: 'anime',
-                    torrents
-                };
-            })
-        );
-
-        res.json({ results: animeWithTorrents });
+        res.json({ results });
     } catch (error) {
         console.error('API anime error:', error);
         res.status(500).json({ error: 'Failed to get anime', results: [] });
@@ -464,13 +382,14 @@ app.get('/api/movie/:id', async (req, res) => {
         const scraperTelegram = (await import('./services/scraperTelegramChannels.js')).default;
 
         // Search ALL sources in parallel - Telegram channels FIRST
-        const [telegramRes, ytsRes, x1337Res, tpbRes, tgxRes, limeRes, iranianRes] = await Promise.allSettled([
+        const [telegramRes, ytsRes, x1337Res, tpbRes, tgxRes, limeRes, nyaaRes, iranianRes] = await Promise.allSettled([
             scraperTelegram.searchWithLinks(movieTitle, 5),
             yts.searchMovies(movieTitle, 3),
             scraper1337x.searchWithMagnets(movieTitle, 5),
             scraperTPB.searchWithMagnets(movieTitle, 3),
             scraperTGX.searchWithMagnets(movieTitle, 3),
             scraperLime.searchWithMagnets(movieTitle, 3),
+            scraperNyaa.searchWithMagnets(movieTitle, 3), // Nyaa.si for anime
             scraperIranian.searchWithLinks(movieTitle, 5)
         ]);
 
@@ -558,6 +477,15 @@ app.get('/api/movie/:id', async (req, res) => {
                     })));
                 }
             }
+        }
+
+        // 8. Nyaa.si for anime
+        if (nyaaRes.status === 'fulfilled' && nyaaRes.value?.[0]?.torrents) {
+            allTorrents.push(...nyaaRes.value[0].torrents.slice(0, 5).map(t => ({
+                ...t,
+                source: 'Nyaa.si',
+                type: 'torrent'
+            })));
         }
 
         console.log(`📥 Found ${allTorrents.length} total download links`);
