@@ -613,6 +613,31 @@ function cancelDownload(index) {
     showToast('دانلود لغو شد');
 }
 
+// Start download from pasted magnet link
+function startMagnetDownload() {
+    const input = document.getElementById('magnet-input');
+    const magnetLink = input?.value?.trim();
+
+    if (!magnetLink) {
+        showToast('❌ لطفاً لینک مگنت را وارد کنید');
+        return;
+    }
+
+    if (!magnetLink.startsWith('magnet:')) {
+        showToast('❌ لینک مگنت باید با magnet: شروع شود');
+        return;
+    }
+
+    // Open Webtor.io for streaming/download
+    const webtorUrl = `https://webtor.io/#/show?magnet=${encodeURIComponent(magnetLink)}`;
+    window.open(webtorUrl, '_blank');
+
+    showToast('🌐 در حال انتقال به Webtor.io...');
+
+    // Clear input
+    input.value = '';
+}
+
 function downloadFile(index) {
     const dl = state.downloads[index];
     if (dl && dl.url) {
