@@ -785,32 +785,84 @@ body::before {
     color: #34d399;
 }
 
-.download-btn.type-telegram {
+/* NEW: Clean Download Items */
+.downloads-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.download-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.download-item:hover {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: var(--accent-primary);
+    transform: translateX(-4px);
+}
+
+.download-item:active {
+    transform: scale(0.98);
+}
+
+.download-item.telegram {
     border-right: 4px solid #8b5cf6;
 }
 
-.download-btn.type-telegram:hover {
-    border-color: #a78bfa;
-    box-shadow: 4px 0 20px rgba(139, 92, 246, 0.2);
-}
-
-.download-btn.type-telegram .download-type-badge {
-    background: rgba(139, 92, 246, 0.2);
-    color: #a78bfa;
-}
-
-.download-btn.type-torrent {
+.download-item.torrent {
     border-right: 4px solid #3b82f6;
 }
 
-.download-btn.type-torrent:hover {
-    border-color: #60a5fa;
-    box-shadow: 4px 0 20px rgba(59, 130, 246, 0.2);
+.download-item-icon {
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border-radius: 10px;
 }
 
-.download-btn.type-torrent .download-type-badge {
-    background: rgba(59, 130, 246, 0.2);
-    color: #60a5fa;
+.download-item-details {
+    flex: 1;
+    text-align: right;
+}
+
+.download-item-quality {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.download-item-meta {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.download-item-arrow {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+}
+
+.download-item:hover .download-item-arrow {
+    transform: translateX(-4px);
+    color: var(--accent-primary);
 }
 
 /* Movie Actions */

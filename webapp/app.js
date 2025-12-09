@@ -414,57 +414,46 @@ function renderMovieDetail(movie) {
             </div>
         `;
     } else if (!torrents || torrents.length === 0) {
-        // Just show action buttons, no extra message
         elements.downloadLinks.innerHTML = actionsHTML;
     } else {
-        // Filter: Only Telegram and Torrent (magnet) links - no direct downloads
+        // Filter: Only Telegram and Torrent (magnet) links
         const filteredTorrents = torrents.filter(torrent => {
             const isTelegramBot = torrent.isTelegramBot || (torrent.magnetLink && torrent.magnetLink.includes('t.me'));
             const isMagnet = torrent.magnetLink && torrent.magnetLink.startsWith('magnet:');
-
-            // Allow Telegram and Magnet links only
             return isTelegramBot || isMagnet;
         });
 
         if (filteredTorrents.length === 0) {
-            // Just show action buttons, no extra message
             elements.downloadLinks.innerHTML = actionsHTML;
         } else {
             const linksHTML = filteredTorrents.map((torrent, i) => {
                 const isTelegramBot = torrent.isTelegramBot || (torrent.magnetLink && torrent.magnetLink.includes('t.me'));
                 const isMagnet = torrent.magnetLink && torrent.magnetLink.startsWith('magnet:');
 
-                // Determine link type and badge
-                let typeBadge = '';
-                let typeClass = '';
-                if (isTelegramBot) {
-                    typeBadge = '📱 تلگرام';
-                    typeClass = 'type-telegram';
-                } else if (isMagnet) {
-                    typeBadge = '🧲 تورنت';
-                    typeClass = 'type-torrent';
-                }
+                // Clean button design
+                const icon = isTelegramBot ? '📱' : '🧲';
+                const typeLabel = isTelegramBot ? 'تلگرام' : 'تورنت';
+                const typeClass = isTelegramBot ? 'telegram' : 'torrent';
 
-                // For magnets, show modal with options. For Telegram, open directly
-                const clickHandler = isMagnet
-                    ? `onclick = "showDownloadModal('${escapeHtml(torrent.magnetLink)}', '${escapeHtml(torrent.quality || '')}', '${escapeHtml(torrent.source || '')}')"`
-                    : `onclick = "handleTelegramLink(event, this)"`;
+                const escapedLink = escapeHtml(torrent.magnetLink || '');
+                const escapedQuality = escapeHtml(torrent.quality || '');
+                const escapedSource = escapeHtml(torrent.source || '');
 
                 return `
-                < button ${clickHandler}
-            class="download-btn ${typeClass}"
-            data - link="${escapeHtml(torrent.magnetLink)}" >
-                        <div class="download-info">
-                            <span class="download-type-badge">${typeBadge}</span>
-                            <span class="download-quality">${torrent.quality || 'نامشخص'}</span>
-                            <span class="download-source">${torrent.source || 'نامشخص'}</span>
+                    <button class="download-item ${typeClass}" 
+                            onclick="showDownloadModal('${escapedLink}', '${escapedQuality}', '${escapedSource}')"
+                            data-link="${escapedLink}">
+                        <div class="download-item-icon">${icon}</div>
+                        <div class="download-item-details">
+                            <span class="download-item-quality">${torrent.quality || 'نامشخص'}</span>
+                            <span class="download-item-meta">${torrent.source || ''} ${torrent.size || ''}</span>
                         </div>
-                        <span class="download-size">${torrent.size || ''}</span>
-                    </button >
+                        <div class="download-item-arrow">←</div>
+                    </button>
                 `;
             }).join('');
 
-            elements.downloadLinks.innerHTML = actionsHTML + linksHTML;
+            elements.downloadLinks.innerHTML = actionsHTML + `<div class="downloads-list">${linksHTML}</div>`;
         }
     }
 }
