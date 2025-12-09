@@ -90,7 +90,17 @@ const elements = {
 // View Management
 // ===================================
 
+// View history for back navigation
+const viewHistory = ['home'];
+
 function showView(viewName) {
+    // Add to history if not going back
+    if (viewName !== viewHistory[viewHistory.length - 1]) {
+        viewHistory.push(viewName);
+        // Keep history limited
+        if (viewHistory.length > 10) viewHistory.shift();
+    }
+
     state.currentView = viewName;
 
     // Hide all views
@@ -130,6 +140,27 @@ function showView(viewName) {
     elements.navItems.forEach(item => {
         item.classList.toggle('active', item.dataset.view === viewName);
     });
+
+    // Show/hide global back button
+    const globalBackBtn = document.getElementById('global-back-btn');
+    if (globalBackBtn) {
+        if (viewName === 'home') {
+            globalBackBtn.classList.add('hidden');
+        } else {
+            globalBackBtn.classList.remove('hidden');
+        }
+    }
+}
+
+// Go back to previous view
+function goBack() {
+    if (viewHistory.length > 1) {
+        viewHistory.pop(); // Remove current view
+        const previousView = viewHistory[viewHistory.length - 1];
+        showView(previousView);
+    } else {
+        showView('home');
+    }
 }
 
 // ===================================
