@@ -452,18 +452,22 @@ function renderMovieDetail(movie) {
                     typeClass = 'type-torrent';
                 }
 
+                // For magnets, show modal with options. For Telegram, open directly
+                const clickHandler = isMagnet
+                    ? `onclick="showDownloadModal('${escapeHtml(torrent.magnetLink)}', '${escapeHtml(torrent.quality || '')}', '${escapeHtml(torrent.source || '')}')"`
+                    : `onclick="handleTelegramLink(event, this)"`;
+
                 return `
-                    <a href="${torrent.magnetLink}" 
+                    <button ${clickHandler}
                        class="download-btn ${typeClass}"
-                       target="_blank"
-                       ${isTelegramBot ? 'onclick="handleTelegramLink(event, this)"' : ''}>
+                       data-link="${escapeHtml(torrent.magnetLink)}">
                         <div class="download-info">
                             <span class="download-type-badge">${typeBadge}</span>
                             <span class="download-quality">${torrent.quality || 'نامشخص'}</span>
                             <span class="download-source">${torrent.source || 'نامشخص'}</span>
                         </div>
                         <span class="download-size">${torrent.size || ''}</span>
-                    </a>
+                    </button>
                 `;
             }).join('');
 
@@ -549,13 +553,101 @@ function showToast(message, duration = 3000) {
 
 function handleTelegramLink(event, element) {
     event.preventDefault();
-    const url = element.href;
+    const url = element.href || element.dataset.link;
 
     if (tg) {
         tg.openTelegramLink(url);
     } else {
         window.open(url, '_blank');
     }
+}
+
+// Download modal for torrent links
+function showDownloadModal(magnetLink, quality, source) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('download-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'download-modal';
+        modal.className = 'modal-overlay hidden';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 350px;">
+                <div class="modal-header">
+                    <h3>🧲 دانلود تورنت</h3>
+                    <button class="modal-close" onclick="closeDownloadModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div id="download-modal-info" style="margin-bottom: 16px; text-align: center;">
+                        <p style="font-size: 1rem; font-weight: 600;"></p>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary);"></p>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <button id="modal-download-btn" class="modal-action-btn" style="background: var(--accent-gradient); color: white; border: none; padding: 14px; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            📥 دانلود مستقیم
+                        </button>
+                        <button id="modal-copy-btn" class="modal-action-btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); padding: 14px; border-radius: 12px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            📋 کپی لینک
+                        </button>
+                    </div>
+                    <p style="margin-top: 16px; font-size: 0.75rem; color: var(--text-muted); text-align: center;">
+                        برای دانلود به نرم‌افزار تورنت نیاز دارید
+                    </p>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeDownloadModal();
+        });
+    }
+
+    // Update modal content
+    const infoDiv = modal.querySelector('#download-modal-info');
+    infoDiv.innerHTML = `
+        <p style="font-size: 1rem; font-weight: 600;">${quality || 'کیفیت نامشخص'}</p>
+        <p style="font-size: 0.85rem; color: var(--text-secondary);">منبع: ${source || 'نامشخص'}</p>
+    `;
+
+    // Set up button actions
+    const downloadBtn = modal.querySelector('#modal-download-btn');
+    const copyBtn = modal.querySelector('#modal-copy-btn');
+
+    downloadBtn.onclick = () => {
+        window.location.href = magnetLink;
+        closeDownloadModal();
+        showToast('🧲 در حال باز کردن در نرم‌افزار تورنت...');
+    };
+
+    copyBtn.onclick = () => copyMagnetLink(magnetLink);
+
+    // Show modal
+    modal.classList.remove('hidden');
+}
+
+function closeDownloadModal() {
+    const modal = document.getElementById('download-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function copyMagnetLink(magnetLink) {
+    navigator.clipboard.writeText(magnetLink).then(() => {
+        showToast('✅ لینک کپی شد!');
+        closeDownloadModal();
+    }).catch(err => {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = magnetLink;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('✅ لینک کپی شد!');
+        closeDownloadModal();
+    });
 }
 
 // ===================================
