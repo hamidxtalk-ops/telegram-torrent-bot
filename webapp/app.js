@@ -322,14 +322,17 @@ async function getMovieDetails(movieId) {
 // ===================================
 
 function renderMovieGrid(container, movies) {
-    // Use data-src for lazy loading instead of inline background-image
+    // Simple and fast rendering with native lazy loading
     container.innerHTML = movies.map((movie, index) => `
         <div class="movie-card" data-movie-id="${movie.id || index}" data-index="${index}">
-            <div class="movie-card-poster" 
-                 data-poster="${movie.poster || movie.posterLarge || ''}"
-                 style="background-color: var(--bg-card);">
+            <div class="movie-card-poster">
+                <img src="${movie.poster || movie.posterLarge || getPlaceholderPoster()}" 
+                     alt="${escapeHtml(movie.title)}"
+                     loading="lazy"
+                     decoding="async"
+                     onerror="this.src='${getPlaceholderPoster()}'"
+                     style="width:100%;height:100%;object-fit:cover;">
                 ${movie.rating ? `<span class="movie-card-rating">⭐ ${movie.rating}</span>` : ''}
-                <div class="poster-loader"></div>
             </div>
             <div class="movie-card-info">
                 <div class="movie-card-title">${escapeHtml(movie.title)}</div>
@@ -337,47 +340,6 @@ function renderMovieGrid(container, movies) {
             </div>
         </div>
     `).join('');
-
-    // Lazy load images with IntersectionObserver
-    const lazyLoadImages = () => {
-        const posters = container.querySelectorAll('.movie-card-poster[data-poster]');
-
-        if ('IntersectionObserver' in window) {
-            const imageObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const poster = entry.target;
-                        const src = poster.dataset.poster;
-                        if (src) {
-                            // Preload image
-                            const img = new Image();
-                            img.onload = () => {
-                                poster.style.backgroundImage = `url('${src}')`;
-                                poster.classList.add('loaded');
-                            };
-                            img.src = src;
-                        } else {
-                            poster.style.backgroundImage = `url('${getPlaceholderPoster()}')`;
-                            poster.classList.add('loaded');
-                        }
-                        imageObserver.unobserve(poster);
-                    }
-                });
-            }, { rootMargin: '100px' }); // Load 100px before entering viewport
-
-            posters.forEach(poster => imageObserver.observe(poster));
-        } else {
-            // Fallback for old browsers
-            posters.forEach(poster => {
-                const src = poster.dataset.poster;
-                poster.style.backgroundImage = `url('${src || getPlaceholderPoster()}')`;
-                poster.classList.add('loaded');
-            });
-        }
-    };
-
-    // Start lazy loading
-    requestAnimationFrame(lazyLoadImages);
 
     // Add click listeners
     container.querySelectorAll('.movie-card').forEach(card => {
