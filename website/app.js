@@ -3,12 +3,13 @@
  * API calls to Render backend
  */
 
-// API Base URL (Change to your Render URL)
-const API_BASE = 'https://telegram-torrent-bot-jqsd.onrender.com';
+// API Base URL (Render backend)
+const API_BASE = 'https://telegram-torrent-bot-hiy7.onrender.com';
 
 // State
 const state = {
-    currentSection: 'home'
+    currentSection: 'home',
+    moviesCache: {} // Store movies by grid for click handling
 };
 
 // DOM Ready
@@ -206,9 +207,12 @@ async function loadAnime() {
 
 // Render Movies
 function renderMovies(movies, gridId) {
+    // Store movies in cache for click handling
+    state.moviesCache[gridId] = movies;
+
     const grid = document.getElementById(gridId);
-    grid.innerHTML = movies.map(movie => `
-        <div class="movie-card" onclick='showMovieDetail(${JSON.stringify(movie).replace(/'/g, "\\'")})'>
+    grid.innerHTML = movies.map((movie, index) => `
+        <div class="movie-card" data-grid="${gridId}" data-index="${index}" onclick="handleMovieClick(this)">
             <div class="movie-poster">
                 ${movie.poster ?
             `<img src="${movie.poster}" alt="${escapeHtml(movie.title)}" loading="lazy">` :
@@ -222,6 +226,16 @@ function renderMovies(movies, gridId) {
             </div>
         </div>
     `).join('');
+}
+
+// Handle movie card click
+function handleMovieClick(card) {
+    const gridId = card.dataset.grid;
+    const index = parseInt(card.dataset.index);
+    const movie = state.moviesCache[gridId]?.[index];
+    if (movie) {
+        showMovieDetail(movie);
+    }
 }
 
 // Show Movie Detail
@@ -273,13 +287,13 @@ async function showMovieDetail(movie) {
                 <div class="download-section">
                     <h3>📥 لینک‌های دانلود</h3>
                     <div class="download-list">
-                        ${torrents.length > 0 ? torrents.map(t => `
+                        ${torrents.length > 0 ? torrents.map((t, i) => `
                             <div class="download-item">
                                 <div class="download-info">
                                     <span class="download-quality">${escapeHtml(t.quality || t.title || 'دانلود')}</span>
                                     <span class="download-source">${escapeHtml(t.source || 'Unknown')} ${t.size ? `- ${t.size}` : ''}</span>
                                 </div>
-                                <button class="download-btn" onclick="handleDownload('${escapeHtml(t.magnetLink || t.url || t.link)}')">
+                                <button class="download-btn" data-link="${encodeURIComponent(t.magnetLink || t.url || t.link || '')}" onclick="handleDownloadClick(this)">
                                     دانلود
                                 </button>
                             </div>
@@ -289,6 +303,17 @@ async function showMovieDetail(movie) {
             </div>
         </div>
     `;
+}
+
+// Handle Download Click from button
+function handleDownloadClick(button) {
+    const encodedLink = button.dataset.link;
+    if (!encodedLink) {
+        showToast('❌ لینک نامعتبر');
+        return;
+    }
+    const link = decodeURIComponent(encodedLink);
+    handleDownload(link);
 }
 
 // Handle Download
@@ -306,9 +331,11 @@ function handleDownload(link) {
         const webtorUrl = `https://webtor.io/#/show?magnet=${encodeURIComponent(link)}`;
         window.open(webtorUrl, '_blank');
         showToast('🌐 در حال انتقال به Webtor.io...');
-    } else {
+    } else if (link.startsWith('http')) {
         window.open(link, '_blank');
         showToast('📥 دانلود شروع شد');
+    } else {
+        showToast('⚠️ لینک پشتیبانی نمی‌شود');
     }
 }
 

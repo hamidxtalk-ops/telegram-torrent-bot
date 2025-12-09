@@ -142,7 +142,7 @@ app.get('/api/search', async (req, res) => {
             console.log(`🧲 1337x: processed`);
         }
 
-        // 4. TMDB for movie info - with quick torrent search
+        // 4. TMDB for movie info - with quick torrent search (ONLY add if has torrents)
         if (tmdbResults.status === 'fulfilled' && tmdbResults.value?.length > 0) {
             const tmdbMovies = tmdbResults.value
                 .filter(movie => !results.find(r => r.title?.toLowerCase() === movie.title?.toLowerCase()))
@@ -166,6 +166,9 @@ app.get('/api/search', async (req, res) => {
                         }
                     } catch (e) { }
 
+                    // ONLY return if has torrents
+                    if (torrents.length === 0) return null;
+
                     return {
                         id: movie.id || index,
                         title,
@@ -175,18 +178,23 @@ app.get('/api/search', async (req, res) => {
                         posterLarge: movie.posterLarge || movie.backdrop ? (movie.posterLarge || movie.backdrop) : (movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null),
                         synopsis: movie.overview || '',
                         torrents,
-                        source: torrents.length > 0 ? 'YTS' : 'TMDB',
-                        sourceType: torrents.length > 0 ? 'torrent' : 'info'
+                        source: 'YTS',
+                        sourceType: 'torrent'
                     };
                 })
             );
 
-            results.push(...tmdbWithTorrents);
-            console.log(`📋 TMDB: ${tmdbWithTorrents.length} results processed`);
+            // Filter out null results (no torrents)
+            const validTmdb = tmdbWithTorrents.filter(m => m !== null);
+            results.push(...validTmdb);
+            console.log(`📋 TMDB: ${validTmdb.length} results with torrents`);
         }
 
-        console.log(`✅ Total search results: ${results.length}`);
-        res.json({ results: results.slice(0, 40) }); // Return more results
+        // Filter final results to only include those with download links
+        const resultsWithLinks = results.filter(m => m.torrents && m.torrents.length > 0);
+
+        console.log(`✅ Total search results with links: ${resultsWithLinks.length}`);
+        res.json({ results: resultsWithLinks.slice(0, 40) });
     } catch (error) {
         console.error('API search error:', error);
         res.status(500).json({ error: 'Search failed', results: [] });
