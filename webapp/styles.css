@@ -945,7 +945,10 @@ body::before {
 
 .paste-magnet-box {
     display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
     gap: var(--spacing-sm);
+    width: 100%;
 }
 
 .magnet-input {
