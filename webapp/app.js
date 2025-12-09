@@ -593,7 +593,10 @@ function handleTelegramLink(event, element) {
     }
 }
 
-// Download modal for torrent links
+// Download modal for torrent links - with WebTorrent support
+let webTorrentClient = null;
+let currentTorrent = null;
+
 function showDownloadModal(magnetLink, quality, source) {
     // Create modal if it doesn't exist
     let modal = document.getElementById('download-modal');
@@ -602,7 +605,7 @@ function showDownloadModal(magnetLink, quality, source) {
         modal.id = 'download-modal';
         modal.className = 'modal-overlay hidden';
         modal.innerHTML = `
-                < div class="modal-content" style = "max-width: 350px;" >
+            <div class="modal-content" style="max-width: 380px;">
                 <div class="modal-header">
                     <h3>🧲 دانلود تورنت</h3>
                     <button class="modal-close" onclick="closeDownloadModal()">×</button>
@@ -612,20 +615,36 @@ function showDownloadModal(magnetLink, quality, source) {
                         <p style="font-size: 1rem; font-weight: 600;"></p>
                         <p style="font-size: 0.85rem; color: var(--text-secondary);"></p>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                    
+                    <!-- Download Progress Section (hidden by default) -->
+                    <div id="download-progress" style="display: none; margin-bottom: 16px;">
+                        <div style="background: var(--bg-secondary); border-radius: 8px; overflow: hidden; height: 8px; margin-bottom: 8px;">
+                            <div id="progress-bar" style="height: 100%; background: var(--accent-gradient); width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary);">
+                            <span id="progress-percent">0%</span>
+                            <span id="progress-speed">در حال اتصال...</span>
+                        </div>
+                        <p id="progress-status" style="text-align: center; margin-top: 8px; font-size: 0.85rem;"></p>
+                    </div>
+                    
+                    <div id="download-buttons" style="display: flex; flex-direction: column; gap: 12px;">
+                        <button id="modal-webtorrent-btn" class="modal-action-btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 14px; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            ⚡ دانلود در مرورگر
+                        </button>
                         <button id="modal-download-btn" class="modal-action-btn" style="background: var(--accent-gradient); color: white; border: none; padding: 14px; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                            📥 دانلود مستقیم
+                            📥 باز کردن در نرم‌افزار
                         </button>
                         <button id="modal-copy-btn" class="modal-action-btn" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); padding: 14px; border-radius: 12px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
                             📋 کپی لینک
                         </button>
                     </div>
                     <p style="margin-top: 16px; font-size: 0.75rem; color: var(--text-muted); text-align: center;">
-                        برای دانلود به نرم‌افزار تورنت نیاز دارید
+                        دانلود در مرورگر نیاز به نرم‌افزار ندارد
                     </p>
                 </div>
-            </div >
-                `;
+            </div>
+        `;
         document.body.appendChild(modal);
 
         // Close on backdrop click
@@ -637,13 +656,22 @@ function showDownloadModal(magnetLink, quality, source) {
     // Update modal content
     const infoDiv = modal.querySelector('#download-modal-info');
     infoDiv.innerHTML = `
-                < p style = "font-size: 1rem; font-weight: 600;" > ${quality || 'کیفیت نامشخص'}</p >
-                    <p style="font-size: 0.85rem; color: var(--text-secondary);">منبع: ${source || 'نامشخص'}</p>
-            `;
+        <p style="font-size: 1rem; font-weight: 600;">${quality || 'کیفیت نامشخص'}</p>
+        <p style="font-size: 0.85rem; color: var(--text-secondary);">منبع: ${source || 'نامشخص'}</p>
+    `;
+
+    // Reset progress section
+    const progressSection = modal.querySelector('#download-progress');
+    const buttonsSection = modal.querySelector('#download-buttons');
+    progressSection.style.display = 'none';
+    buttonsSection.style.display = 'flex';
 
     // Set up button actions
+    const webTorrentBtn = modal.querySelector('#modal-webtorrent-btn');
     const downloadBtn = modal.querySelector('#modal-download-btn');
     const copyBtn = modal.querySelector('#modal-copy-btn');
+
+    webTorrentBtn.onclick = () => startWebTorrentDownload(magnetLink);
 
     downloadBtn.onclick = () => {
         window.location.href = magnetLink;
@@ -657,10 +685,111 @@ function showDownloadModal(magnetLink, quality, source) {
     modal.classList.remove('hidden');
 }
 
+// WebTorrent in-browser download
+function startWebTorrentDownload(magnetLink) {
+    const modal = document.getElementById('download-modal');
+    const progressSection = modal.querySelector('#download-progress');
+    const buttonsSection = modal.querySelector('#download-buttons');
+    const progressBar = modal.querySelector('#progress-bar');
+    const progressPercent = modal.querySelector('#progress-percent');
+    const progressSpeed = modal.querySelector('#progress-speed');
+    const progressStatus = modal.querySelector('#progress-status');
+
+    // Check if WebTorrent is available
+    if (typeof WebTorrent === 'undefined') {
+        showToast('❌ WebTorrent در دسترس نیست');
+        return;
+    }
+
+    // Show progress, hide buttons
+    progressSection.style.display = 'block';
+    buttonsSection.style.display = 'none';
+    progressStatus.textContent = 'در حال اتصال به تورنت...';
+
+    // Cancel previous download if any
+    if (currentTorrent) {
+        currentTorrent.destroy();
+        currentTorrent = null;
+    }
+
+    // Create WebTorrent client if needed
+    if (!webTorrentClient) {
+        webTorrentClient = new WebTorrent();
+    }
+
+    // Start download
+    currentTorrent = webTorrentClient.add(magnetLink, {
+        announce: [
+            'wss://tracker.openwebtorrent.com',
+            'wss://tracker.btorrent.xyz',
+            'wss://tracker.fastcast.nz'
+        ]
+    });
+
+    currentTorrent.on('metadata', () => {
+        progressStatus.textContent = `📦 ${currentTorrent.name}`;
+    });
+
+    currentTorrent.on('download', () => {
+        const percent = (currentTorrent.progress * 100).toFixed(1);
+        const speed = formatBytes(currentTorrent.downloadSpeed) + '/s';
+
+        progressBar.style.width = percent + '%';
+        progressPercent.textContent = percent + '%';
+        progressSpeed.textContent = speed;
+    });
+
+    currentTorrent.on('done', () => {
+        progressStatus.textContent = '✅ دانلود کامل شد!';
+        progressPercent.textContent = '100%';
+        progressSpeed.textContent = '';
+
+        // Create download link for files
+        currentTorrent.files.forEach(file => {
+            file.getBlobURL((err, url) => {
+                if (err) return console.error(err);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name;
+                a.click();
+            });
+        });
+
+        showToast('✅ دانلود کامل شد!');
+    });
+
+    currentTorrent.on('error', (err) => {
+        console.error('Torrent error:', err);
+        progressStatus.textContent = '❌ خطا در دانلود';
+        showToast('❌ خطا در دانلود تورنت');
+
+        // Show buttons again
+        setTimeout(() => {
+            progressSection.style.display = 'none';
+            buttonsSection.style.display = 'flex';
+        }, 2000);
+    });
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
 function closeDownloadModal() {
     const modal = document.getElementById('download-modal');
     if (modal) {
         modal.classList.add('hidden');
+
+        // Cancel current download when closing
+        if (currentTorrent) {
+            currentTorrent.destroy();
+            currentTorrent = null;
+        }
     }
 }
 
