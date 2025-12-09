@@ -459,24 +459,22 @@ function renderMovieDetail(movie) {
 }
 
 function showLoadingSkeleton(container, count = 6) {
-    container.innerHTML = Array(count).fill(`
-                < div class="movie-card skeleton" >
-            <div class="movie-card-poster skeleton"></div>
-            <div class="movie-card-info">
-                <div class="skeleton" style="height: 16px; margin-bottom: 4px;"></div>
-                <div class="skeleton" style="height: 12px; width: 50%;"></div>
-            </div>
-        </div >
-                `).join('');
+    // Show simple loading spinner instead of skeleton cards
+    container.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+            <div class="loading-spinner" style="width: 32px; height: 32px; margin: 0 auto 12px;"></div>
+            <p style="color: var(--text-muted);">در حال بارگذاری...</p>
+        </div>
+    `;
 }
 
 function showEmptyState(container, message) {
     container.innerHTML = `
-                < div class="empty-state" style = "grid-column: 1 / -1;" >
-            <div class="empty-state-icon">🎬</div>
-            <p>${message}</p>
-        </div >
-                `;
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+            <div style="font-size: 2.5rem; margin-bottom: 12px;">🎬</div>
+            <p style="color: var(--text-muted);">${message}</p>
+        </div>
+    `;
 }
 
 function renderGenres(genres) {
