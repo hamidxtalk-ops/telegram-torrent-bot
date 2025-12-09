@@ -18,10 +18,16 @@ app.use(express.json());
 // Serve static files for Mini App
 app.use('/webapp', express.static(path.join(__dirname, 'webapp')));
 
-// CORS for Mini App
+// CORS for all origins (website + mini app)
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, X-Telegram-Init-Data');
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
     next();
 });
 
