@@ -120,18 +120,24 @@ function showView(viewName) {
 }
 
 // ===================================
-// API Functions
+// API Functions - with retry and timeout
 // ===================================
 
-async function apiRequest(endpoint, options = {}) {
+async function apiRequest(endpoint, options = {}, retries = 2) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
     try {
         const response = await fetch(`${API_BASE}${endpoint}`, {
             headers: {
                 'Content-Type': 'application/json',
                 ...(tg?.initData && { 'X-Telegram-Init-Data': tg.initData })
             },
+            signal: controller.signal,
             ...options
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -139,9 +145,25 @@ async function apiRequest(endpoint, options = {}) {
 
         return await response.json();
     } catch (error) {
-        console.error('API Error:', error);
-        showToast('❌ خطا در برقراری ارتباط');
-        throw error;
+        clearTimeout(timeoutId);
+        console.error('API Error:', error.message);
+
+        // Retry on network errors
+        if (retries > 0 && (error.name === 'AbortError' || error.message.includes('fetch'))) {
+            console.log(`🔄 Retrying... (${retries} left)`);
+            await new Promise(r => setTimeout(r, 1000)); // Wait 1 second
+            return apiRequest(endpoint, options, retries - 1);
+        }
+
+        // Show user-friendly error
+        if (error.name === 'AbortError') {
+            showToast('⏱ سرعت اینترنت پایین است');
+        } else {
+            showToast('❌ خطا در ارتباط - دوباره تلاش کنید');
+        }
+
+        // Return empty result instead of throwing
+        return { results: [], error: true };
     }
 }
 

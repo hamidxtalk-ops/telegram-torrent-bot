@@ -52,7 +52,7 @@ import scraperCoolDL from './services/scraperCoolDL.js';
 import scraperUptvs from './services/scraperUptvs.js';
 import scraperZardFilm from './services/scraperZardFilm.js';
 
-// Search API - Searches Telegram channels and Torrent sites only
+// Search API - OPTIMIZED for speed (fewer sources, faster timeout)
 app.get('/api/search', async (req, res) => {
     try {
         const query = req.query.q;
@@ -65,29 +65,30 @@ app.get('/api/search', async (req, res) => {
         // Import Telegram scraper
         const scraperTelegram = (await import('./services/scraperTelegramChannels.js')).default;
 
-        // Search from Telegram and Torrent sources in parallel
+        // Timeout wrapper for faster responses (8 seconds max per scraper)
+        const withTimeout = (promise, timeoutMs = 8000) => {
+            return Promise.race([
+                promise,
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout')), timeoutMs)
+                )
+            ]).catch(err => {
+                console.log(`⏱ Scraper timeout/error: ${err.message}`);
+                return [];
+            });
+        };
+
+        // Search only FAST sources in parallel (4 sources instead of 10)
         const [
             telegramResults,
-            ytsResults,
-            x1337Results,
             tmdbResults,
-            tpbResults,
-            tgxResults,
-            limeResults,
-            todayResults,
-            torrentDLResults,
-            glodlsResults
+            ytsResults,
+            x1337Results
         ] = await Promise.allSettled([
-            scraperTelegram.searchWithLinks(query, 10),
-            yts.searchMovies(query, 8),
-            scraper1337x.searchWithMagnets(query, 8),
-            tmdb.searchMovies(query),
-            scraperTPB.searchWithMagnets(query, 5),
-            scraperTGX.searchWithMagnets(query, 5),
-            scraperLime.searchWithMagnets(query, 5),
-            scraperTodayTV.searchWithLinks(query, 5),
-            scraperTorrentDL.searchWithMagnets(query, 5),
-            scraperGLODLS.searchWithMagnets(query, 5)
+            withTimeout(scraperTelegram.searchWithLinks(query, 8)),
+            withTimeout(tmdb.searchMovies(query), 5000),
+            withTimeout(yts.searchMovies(query, 6), 6000),
+            withTimeout(scraper1337x.searchWithMagnets(query, 5), 8000)
         ]);
 
         let results = [];
@@ -135,41 +136,11 @@ app.get('/api/search', async (req, res) => {
             console.log(`🧲 1337x: processed`);
         }
 
-        // 4. FOURTH: Other torrent sites
-        const otherTorrents = [
-            { result: tpbResults, name: 'TPB' },
-            { result: tgxResults, name: 'TorrentGalaxy' },
-            { result: limeResults, name: 'LimeTorrents' },
-            { result: todayResults, name: 'TodayTV' },
-            { result: torrentDLResults, name: 'TorrentDownloads' },
-            { result: glodlsResults, name: 'GLODLS' }
-        ];
-
-        for (const { result, name } of otherTorrents) {
-            if (result.status === 'fulfilled' && result.value?.length > 0) {
-                for (const movie of result.value) {
-                    if (!movie.torrents || movie.torrents.length === 0) continue;
-
-                    const existing = results.find(r =>
-                        r.title?.toLowerCase() === movie.title?.toLowerCase()
-                    );
-                    if (existing && existing.torrents) {
-                        existing.torrents.push(...(movie.torrents || []));
-                    } else if (!existing) {
-                        results.push({
-                            ...movie,
-                            sourceType: 'torrent',
-                            source: movie.source || name
-                        });
-                    }
-                }
-            }
-        }
-
-        // 6. LAST: TMDB for movie info only (if no results with download links)
-        if (results.length === 0 && tmdbResults.status === 'fulfilled' && tmdbResults.value?.length > 0) {
+        // 4. LAST: TMDB for movie info (always show something)
+        if (tmdbResults.status === 'fulfilled' && tmdbResults.value?.length > 0) {
             const tmdbMovies = tmdbResults.value
                 .filter(movie => !results.find(r => r.title?.toLowerCase() === movie.title?.toLowerCase()))
+                .slice(0, results.length > 0 ? 5 : 15) // Show more if no other results
                 .map((movie, index) => ({
                     id: movie.id || index,
                     title: movie.title || movie.name,
@@ -183,14 +154,14 @@ app.get('/api/search', async (req, res) => {
                     sourceType: 'info'
                 }));
             results.push(...tmdbMovies);
-            console.log(`📋 TMDB info: ${tmdbMovies.length} results (no downloads found)`);
+            console.log(`📋 TMDB: ${tmdbMovies.length} info results`);
         }
 
         console.log(`✅ Total search results: ${results.length}`);
-        res.json({ results: results.slice(0, 40) });
+        res.json({ results: results.slice(0, 30) });
     } catch (error) {
         console.error('API search error:', error);
-        res.status(500).json({ error: 'Search failed' });
+        res.status(500).json({ error: 'Search failed', results: [] });
     }
 });
 
