@@ -764,7 +764,34 @@ function startWebTorrentDownload(magnetLink) {
 
     // Check if WebTorrent is available
     if (typeof WebTorrent === 'undefined') {
-        showToast('❌ WebTorrent در دسترس نیست');
+        // WebTorrent not available - show alternatives
+        showToast('⚠️ دانلود مرورگری در دسترس نیست');
+
+        // Show alternative options
+        buttonsSection.innerHTML = `
+            <a href="https://webtor.io/#/show?magnet=${encodeURIComponent(magnetLink)}" 
+               target="_blank"
+               class="modal-action-btn" 
+               style="background: linear-gradient(135deg, #8B5CF6, #7C3AED); color: white; border: none; padding: 14px; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">
+                🌐 دانلود آنلاین (Webtor.io)
+            </a>
+            <a href="${magnetLink}" 
+               class="modal-action-btn" 
+               style="background: var(--accent-gradient); color: white; border: none; padding: 14px; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">
+                📥 باز کردن در نرم‌افزار تورنت
+            </a>
+            <button onclick="copyMagnetLink('${magnetLink.replace(/'/g, "\\'")}')" 
+                    class="modal-action-btn" 
+                    style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); padding: 14px; border-radius: 12px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                📋 کپی لینک مگنت
+            </button>
+        `;
+
+        modal.querySelector('#modal-hint').innerHTML = `
+            <strong>💡 راهنما:</strong><br>
+            روی "دانلود آنلاین" بزنید تا فایل رو مستقیم از مرورگر دانلود کنید.<br>
+            یا لینک رو کپی کرده و توی uTorrent یا qBittorrent بذارید.
+        `;
         return;
     }
 
