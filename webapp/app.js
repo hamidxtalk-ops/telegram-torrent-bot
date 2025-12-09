@@ -39,7 +39,9 @@ const state = {
     currentView: 'home',
     searchResults: [],
     selectedMovie: null,
-    isLoading: false
+    isLoading: false,
+    downloads: JSON.parse(localStorage.getItem('downloads') || '[]'),
+    activeDownloads: []
 };
 
 // API Base URL (same server)
@@ -75,6 +77,10 @@ const elements = {
     movieSynopsis: document.getElementById('movie-synopsis'),
     movieGenres: document.getElementById('movie-genres'),
     downloadLinks: document.getElementById('download-links'),
+    downloadsView: document.getElementById('downloads-view'),
+    activeDownloads: document.getElementById('active-downloads'),
+    completedDownloads: document.getElementById('completed-downloads'),
+    downloadsBackBtn: document.getElementById('downloads-back-btn'),
     toast: document.getElementById('toast'),
     navItems: document.querySelectorAll('.nav-item'),
     quickBtns: document.querySelectorAll('.quick-btn')
@@ -93,6 +99,7 @@ function showView(viewName) {
     elements.movieView.classList.remove('active');
     elements.helpView.classList.remove('active');
     elements.genresView.classList.remove('active');
+    if (elements.downloadsView) elements.downloadsView.classList.remove('active');
 
     // Show requested view
     switch (viewName) {
@@ -110,6 +117,12 @@ function showView(viewName) {
             break;
         case 'genres':
             elements.genresView.classList.add('active');
+            break;
+        case 'downloads':
+            if (elements.downloadsView) {
+                elements.downloadsView.classList.add('active');
+                renderDownloadsView();
+            }
             break;
     }
 
@@ -492,11 +505,11 @@ function renderGenres(genres) {
     };
 
     elements.genresList.innerHTML = genres.map(genre => `
-                < div class="genre-card" data - genre - id="${genre.id}" data - genre - name="${genre.name}" >
+        <div class="genre-card" data-genre-id="${genre.id}" data-genre-name="${genre.name}">
             <span class="genre-icon">${genreIcons[genre.id] || '🎬'}</span>
             <span class="genre-name">${genre.name}</span>
-        </div >
-                `).join('');
+        </div>
+    `).join('');
 
     // Add click listeners
     elements.genresList.querySelectorAll('.genre-card').forEach(card => {
@@ -506,6 +519,72 @@ function renderGenres(genres) {
             getByGenre(genreId, genreName);
         });
     });
+}
+
+// ===================================
+// Downloads Manager
+// ===================================
+
+function renderDownloadsView() {
+    // Render active downloads
+    if (state.activeDownloads.length === 0) {
+        elements.activeDownloads.innerHTML = '<div class="dm-empty">هیچ دانلود فعالی وجود ندارد</div>';
+    } else {
+        elements.activeDownloads.innerHTML = state.activeDownloads.map((dl, i) => `
+            <div class="dm-item active">
+                <div class="dm-item-icon">⏳</div>
+                <div class="dm-item-info">
+                    <div class="dm-item-name">${escapeHtml(dl.name || 'فایل')}</div>
+                    <div class="dm-item-progress">
+                        <div class="dm-progress-bar" style="width: ${dl.progress || 0}%"></div>
+                    </div>
+                    <div class="dm-item-status">${dl.progress || 0}% - ${dl.speed || '0 KB/s'}</div>
+                </div>
+                <button class="dm-item-cancel" onclick="cancelDownload(${i})">✕</button>
+            </div>
+        `).join('');
+    }
+
+    // Render completed downloads
+    if (state.downloads.length === 0) {
+        elements.completedDownloads.innerHTML = '<div class="dm-empty">هیچ فایلی دانلود نشده</div>';
+    } else {
+        elements.completedDownloads.innerHTML = state.downloads.map((dl, i) => `
+            <div class="dm-item completed">
+                <div class="dm-item-icon">✅</div>
+                <div class="dm-item-info">
+                    <div class="dm-item-name">${escapeHtml(dl.name || 'فایل')}</div>
+                    <div class="dm-item-size">${dl.size || ''}</div>
+                </div>
+                <button class="dm-item-action" onclick="downloadFile(${i})">📥</button>
+            </div>
+        `).join('');
+    }
+}
+
+function addToDownloads(name, url, size) {
+    state.downloads.push({ name, url, size, date: new Date().toISOString() });
+    localStorage.setItem('downloads', JSON.stringify(state.downloads));
+    renderDownloadsView();
+}
+
+function cancelDownload(index) {
+    if (state.activeDownloads[index] && state.activeDownloads[index].torrent) {
+        state.activeDownloads[index].torrent.destroy();
+    }
+    state.activeDownloads.splice(index, 1);
+    renderDownloadsView();
+    showToast('دانلود لغو شد');
+}
+
+function downloadFile(index) {
+    const dl = state.downloads[index];
+    if (dl && dl.url) {
+        const a = document.createElement('a');
+        a.href = dl.url;
+        a.download = dl.name || 'file';
+        a.click();
+    }
 }
 
 // ===================================

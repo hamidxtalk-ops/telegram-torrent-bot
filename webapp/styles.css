@@ -1298,6 +1298,128 @@ body::before {
     color: var(--text-primary);
 }
 
+/* Download Manager Styles */
+.downloads-manager {
+    padding: var(--spacing-md);
+}
+
+.dm-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.dm-section h3 {
+    font-size: 1rem;
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+}
+
+.dm-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.dm-empty {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-muted);
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 1px dashed var(--border-color);
+}
+
+.dm-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+}
+
+.dm-item-icon {
+    font-size: 1.5rem;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+}
+
+.dm-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.dm-item-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+
+.dm-item-progress {
+    height: 6px;
+    background: var(--bg-secondary);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.dm-progress-bar {
+    height: 100%;
+    background: var(--accent-gradient);
+    transition: width 0.3s;
+}
+
+.dm-item-status,
+.dm-item-size {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.dm-item-cancel,
+.dm-item-action {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    transition: background 0.2s;
+}
+
+.dm-item-cancel:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+.dm-item-action:hover {
+    background: rgba(139, 92, 246, 0.2);
+}
+
+.dm-instructions {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.dm-instructions h4 {
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.dm-instructions p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: var(--spacing-xs) 0;
+}
+
 /* Utility Classes */
 .hidden {
     display: none !important;
