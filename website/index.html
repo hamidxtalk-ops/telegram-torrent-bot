@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="فیلم‌یاب - جستجو و دانلود فیلم و سریال">
+    <title>🎬 فیلم‌یاب | Movie Finder</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <span class="logo-icon">🎬</span>
+                <span class="logo-text">فیلم‌یاب</span>
+            </div>
+            <nav class="nav">
+                <a href="#" class="nav-link active" data-section="home">خانه</a>
+                <a href="#" class="nav-link" data-section="trending">ترندینگ</a>
+                <a href="#" class="nav-link" data-section="genres">ژانرها</a>
+                <a href="#" class="nav-link" data-section="tv">سریال</a>
+                <a href="#" class="nav-link" data-section="anime">انیمه</a>
+            </nav>
+            <div class="header-search">
+                <input type="text" id="header-search-input" placeholder="جستجو..." class="header-search-input">
+                <button id="header-search-btn" class="header-search-btn">🔍</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Hero Section -->
+        <section id="hero-section" class="hero">
+            <div class="hero-content">
+                <h1 class="hero-title">🎬 فیلم‌یاب</h1>
+                <p class="hero-subtitle">جستجو و دانلود فیلم و سریال از منابع مختلف</p>
+                <div class="hero-search">
+                    <input type="text" id="main-search-input" placeholder="نام فیلم یا سریال را بنویسید..." class="main-search-input">
+                    <button id="main-search-btn" class="main-search-btn">جستجو</button>
+                </div>
+                <div class="hero-sources">
+                    <span class="source-tag">YTS</span>
+                    <span class="source-tag">1337x</span>
+                    <span class="source-tag">Nyaa</span>
+                    <span class="source-tag">TMDB</span>
+                    <span class="source-tag">+10 منبع</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading -->
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>در حال جستجو...</p>
+        </div>
+
+        <!-- Results Section -->
+        <section id="results-section" class="section hidden">
+            <div class="section-header">
+                <h2 id="results-title">نتایج جستجو</h2>
+                <button id="back-to-home" class="back-btn">🏠 بازگشت</button>
+            </div>
+            <div id="results-grid" class="movies-grid"></div>
+        </section>
+
+        <!-- Trending Section -->
+        <section id="trending-section" class="section">
+            <div class="section-header">
+                <h2>🔥 فیلم‌های پرطرفدار</h2>
+            </div>
+            <div id="trending-grid" class="movies-grid"></div>
+        </section>
+
+        <!-- Genres Section -->
+        <section id="genres-section" class="section hidden">
+            <div class="section-header">
+                <h2>🎭 انتخاب ژانر</h2>
+                <button class="back-btn" onclick="showSection('home')">🏠 بازگشت</button>
+            </div>
+            <div id="genres-grid" class="genres-grid"></div>
+        </section>
+
+        <!-- TV Section -->
+        <section id="tv-section" class="section hidden">
+            <div class="section-header">
+                <h2>📺 سریال‌های محبوب</h2>
+                <button class="back-btn" onclick="showSection('home')">🏠 بازگشت</button>
+            </div>
+            <div id="tv-grid" class="movies-grid"></div>
+        </section>
+
+        <!-- Anime Section -->
+        <section id="anime-section" class="section hidden">
+            <div class="section-header">
+                <h2>🎌 انیمه</h2>
+                <button class="back-btn" onclick="showSection('home')">🏠 بازگشت</button>
+            </div>
+            <div id="anime-grid" class="movies-grid"></div>
+        </section>
+    </main>
+
+    <!-- Movie Modal -->
+    <div id="movie-modal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeModal()"></div>
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">×</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p>🎬 فیلم‌یاب - جستجو و دانلود فیلم و سریال</p>
+            <p class="footer-disclaimer">این سایت فقط لینک‌ها را نمایش می‌دهد و مسئولیتی در قبال محتوا ندارد.</p>
+        </div>
+    </footer>
+
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+</html>

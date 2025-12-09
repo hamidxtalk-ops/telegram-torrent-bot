@@ -691,14 +691,15 @@ import cache from './services/cache.js';
 import rateLimiter from './utils/rateLimiter.js';
 import { t } from './utils/languages.js';
 
-// Validate environment
+// Check if Telegram bot should be enabled
 const BOT_TOKEN = process.env.BOT_TOKEN;
-if (!BOT_TOKEN) {
-    console.error('❌ BOT_TOKEN is required. Please set it in .env file.');
-    process.exit(1);
-}
+const ENABLE_TELEGRAM_BOT = BOT_TOKEN && BOT_TOKEN.length > 10;
 
-console.log('🤖 Bot is starting...');
+if (!ENABLE_TELEGRAM_BOT) {
+    console.log('⚠️ BOT_TOKEN not set - Running in API-only mode (no Telegram bot)');
+} else {
+    console.log('🤖 Bot is starting...');
+}
 
 // Initialize database and start bot
 async function main() {
@@ -706,369 +707,375 @@ async function main() {
     await db.init();
     console.log('✅ Database initialized');
 
-    // Create bot instance
-    const bot = new TelegramBot(BOT_TOKEN, {
-        polling: true,
-        filepath: false // Disable file download for security
-    });
-
-    // ==================== COMMAND HANDLERS ====================
-
-    // /start command
-    bot.onText(/\/start/, async (msg) => {
-        await handleStart(bot, msg);
-    });
-
-    // /search command
-    bot.onText(/\/search(.*)/, async (msg, match) => {
-        const query = match[1]?.trim() || '';
-        await handleSearch(bot, msg, query);
-    });
-
-    // /help command
-    bot.onText(/\/help/, async (msg) => {
-        await handleHelp(bot, msg);
-    });
-
-    // /favorites command
-    bot.onText(/\/favorites/, async (msg) => {
-        await handleFavorites(bot, msg);
-    });
-
-    // /history command
-    bot.onText(/\/history/, async (msg) => {
-        await handleHistory(bot, msg);
-    });
-
-    // /trending command
-    bot.onText(/\/trending/, async (msg) => {
-        await handleTrending(bot, msg);
-    });
-
-    // /browse command
-    bot.onText(/\/browse\s*(.*)/, async (msg, match) => {
-        const genre = match[1]?.trim() || null;
-        await handleBrowse(bot, msg, genre);
-    });
-
-    // /legal command
-    bot.onText(/\/legal/, async (msg) => {
-        await handleLegal(bot, msg);
-    });
-
-    // /language command
-    bot.onText(/\/language/, async (msg) => {
-        const chatId = msg.chat.id;
-        await bot.sendMessage(chatId, '🌐 *Select your language:*', {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '🇬🇧 English', callback_data: 'lang:en' }],
-                    [{ text: '🇮🇷 فارسی', callback_data: 'lang:fa' }],
-                    [{ text: '🇪🇸 Español', callback_data: 'lang:es' }]
-                ]
-            }
+    // Only create bot if token is available
+    let bot = null;
+    if (ENABLE_TELEGRAM_BOT) {
+        bot = new TelegramBot(BOT_TOKEN, {
+            polling: true,
+            filepath: false // Disable file download for security
         });
-    });
 
-    // ==================== TEXT MESSAGE HANDLER ====================
+        // ==================== COMMAND HANDLERS ====================
 
-    // Mini App URL
-    const WEBAPP_URL = process.env.RENDER_EXTERNAL_URL
-        ? `${process.env.RENDER_EXTERNAL_URL}/webapp/`
-        : 'https://telegram-torrent-bot-jqsd.onrender.com/webapp/';
+        // /start command
+        bot.onText(/\/start/, async (msg) => {
+            await handleStart(bot, msg);
+        });
 
-    // Redirect text messages to Mini App (no direct search)
-    bot.on('message', async (msg) => {
-        // Ignore commands
-        if (msg.text?.startsWith('/')) return;
-        // Ignore non-text messages
-        if (!msg.text) return;
+        // /search command
+        bot.onText(/\/search(.*)/, async (msg, match) => {
+            const query = match[1]?.trim() || '';
+            await handleSearch(bot, msg, query);
+        });
 
-        const userId = msg.from.id;
+        // /help command
+        bot.onText(/\/help/, async (msg) => {
+            await handleHelp(bot, msg);
+        });
 
-        // Check if user is banned
-        if (db.isBanned(userId)) {
-            return;
-        }
+        // /favorites command
+        bot.onText(/\/favorites/, async (msg) => {
+            await handleFavorites(bot, msg);
+        });
 
-        // Check if user has accepted terms
-        if (!db.hasAcceptedTerms(userId)) {
-            const lang = db.getLanguage(userId);
-            await bot.sendMessage(msg.chat.id, t(lang, 'termsRequired'));
-            return;
-        }
+        // /history command
+        bot.onText(/\/history/, async (msg) => {
+            await handleHistory(bot, msg);
+        });
 
-        // Redirect to Mini App instead of search
-        await bot.sendMessage(msg.chat.id,
-            `🎬 *برای جستجو از Mini App استفاده کنید*\n\n` +
-            `روی دکمه زیر کلیک کنید و عبارت «${msg.text}» را جستجو کنید:`,
-            {
+        // /trending command
+        bot.onText(/\/trending/, async (msg) => {
+            await handleTrending(bot, msg);
+        });
+
+        // /browse command
+        bot.onText(/\/browse\s*(.*)/, async (msg, match) => {
+            const genre = match[1]?.trim() || null;
+            await handleBrowse(bot, msg, genre);
+        });
+
+        // /legal command
+        bot.onText(/\/legal/, async (msg) => {
+            await handleLegal(bot, msg);
+        });
+
+        // /language command
+        bot.onText(/\/language/, async (msg) => {
+            const chatId = msg.chat.id;
+            await bot.sendMessage(chatId, '🌐 *Select your language:*', {
                 parse_mode: 'Markdown',
                 reply_markup: {
-                    inline_keyboard: [[
-                        {
-                            text: '🎬 ورود به فیلم‌یاب',
-                            web_app: { url: WEBAPP_URL }
-                        }
-                    ]]
+                    inline_keyboard: [
+                        [{ text: '🇬🇧 English', callback_data: 'lang:en' }],
+                        [{ text: '🇮🇷 فارسی', callback_data: 'lang:fa' }],
+                        [{ text: '🇪🇸 Español', callback_data: 'lang:es' }]
+                    ]
                 }
-            }
-        );
-    });
+            });
+        });
 
-    // ==================== CALLBACK QUERY HANDLER ====================
+        // ==================== TEXT MESSAGE HANDLER ====================
 
-    bot.on('callback_query', async (query) => {
-        const data = query.data;
-        const userId = query.from.id;
+        // Mini App URL
+        const WEBAPP_URL = process.env.RENDER_EXTERNAL_URL
+            ? `${process.env.RENDER_EXTERNAL_URL}/webapp/`
+            : 'https://telegram-torrent-bot-jqsd.onrender.com/webapp/';
 
-        try {
+        // Redirect text messages to Mini App (no direct search)
+        bot.on('message', async (msg) => {
+            // Ignore commands
+            if (msg.text?.startsWith('/')) return;
+            // Ignore non-text messages
+            if (!msg.text) return;
+
+            const userId = msg.from.id;
+
             // Check if user is banned
             if (db.isBanned(userId)) {
+                return;
+            }
+
+            // Check if user has accepted terms
+            if (!db.hasAcceptedTerms(userId)) {
+                const lang = db.getLanguage(userId);
+                await bot.sendMessage(msg.chat.id, t(lang, 'termsRequired'));
+                return;
+            }
+
+            // Redirect to Mini App instead of search
+            await bot.sendMessage(msg.chat.id,
+                `🎬 *برای جستجو از Mini App استفاده کنید*\n\n` +
+                `روی دکمه زیر کلیک کنید و عبارت «${msg.text}» را جستجو کنید:`,
+                {
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [[
+                            {
+                                text: '🎬 ورود به فیلم‌یاب',
+                                web_app: { url: WEBAPP_URL }
+                            }
+                        ]]
+                    }
+                }
+            );
+        });
+
+        // ==================== CALLBACK QUERY HANDLER ====================
+
+        bot.on('callback_query', async (query) => {
+            const data = query.data;
+            const userId = query.from.id;
+
+            try {
+                // Check if user is banned
+                if (db.isBanned(userId)) {
+                    await bot.answerCallbackQuery(query.id, {
+                        text: 'You are banned from using this bot.',
+                        show_alert: true
+                    });
+                    return;
+                }
+
+                // Terms acceptance
+                if (data === 'accept_terms') {
+                    await handleAcceptTerms(bot, query);
+                    return;
+                }
+
+                // Language selection
+                if (data === 'select_language') {
+                    await handleLanguageSelect(bot, query);
+                    return;
+                }
+
+                if (data.startsWith('lang:')) {
+                    const langCode = data.split(':')[1];
+                    await handleLanguageChange(bot, query, langCode);
+                    return;
+                }
+
+                // Navigation - Show Mini App button
+                if (data === 'back_main') {
+                    try {
+                        await bot.editMessageText(
+                            `🎬 *به فیلم‌یاب خوش آمدید!*\n\nبرای جستجو و دانلود فیلم روی دکمه زیر کلیک کنید:`,
+                            {
+                                chat_id: query.message.chat.id,
+                                message_id: query.message.message_id,
+                                parse_mode: 'Markdown',
+                                reply_markup: {
+                                    inline_keyboard: [
+                                        [
+                                            {
+                                                text: '🎬 ورود به فیلم‌یاب',
+                                                web_app: { url: WEBAPP_URL }
+                                            }
+                                        ],
+                                        [
+                                            { text: '🌐 زبان / Language', callback_data: 'select_language' },
+                                            { text: '📞 پشتیبانی', url: 'https://t.me/Mound84' }
+                                        ]
+                                    ]
+                                }
+                            }
+                        );
+                    } catch (e) { }
+                    await bot.answerCallbackQuery(query.id);
+                    return;
+                }
+
+                // Prompt for search
+                if (data === 'prompt_search') {
+                    await bot.sendMessage(query.message.chat.id,
+                        '🔍 *اسم فیلم یا سریال رو بفرست تا پیداش کنم*\n\nمثال: `Avengers` یا `Breaking Bad`',
+                        { parse_mode: 'Markdown' }
+                    );
+                    await bot.answerCallbackQuery(query.id);
+                    return;
+                }
+
+                // Trending
+                if (data === 'trending') {
+                    await handleTrendingCallback(bot, query);
+                    return;
+                }
+
+                if (data.startsWith('trending:')) {
+                    const period = data.split(':')[1];
+                    await handleTrendingPeriod(bot, query, period);
+                    return;
+                }
+
+                // TV Series
+                if (data === 'tv_series') {
+                    await handleTVSeries(bot, query);
+                    return;
+                }
+
+                // Anime
+                if (data === 'anime') {
+                    await handleAnime(bot, query);
+                    return;
+                }
+
+                // Recommended
+                if (data === 'recommended') {
+                    await handleRecommended(bot, query);
+                    return;
+                }
+
+                if (data.startsWith('rec_genre:')) {
+                    const genre = data.split(':')[1];
+                    await handleRecommendedGenre(bot, query, genre);
+                    return;
+                }
+
+                // Browse genres
+                if (data === 'browse') {
+                    await handleBrowseCallback(bot, query);
+                    return;
+                }
+
+                if (data.startsWith('genre:')) {
+                    const genre = data.split(':')[1];
+                    await handleGenreCallback(bot, query, genre);
+                    return;
+                }
+
+                // Favorites
+                if (data === 'favorites') {
+                    await handleFavoritesCallback(bot, query);
+                    return;
+                }
+
+                if (data.startsWith('fav:')) {
+                    const movieId = data.split(':')[1];
+                    await handleAddFavorite(bot, query, movieId, null);
+                    return;
+                }
+
+                if (data === 'clear_favorites') {
+                    await handleClearFavorites(bot, query);
+                    return;
+                }
+
+                // History
+                if (data === 'history') {
+                    await handleHistoryCallback(bot, query);
+                    return;
+                }
+
+                if (data.startsWith('search:')) {
+                    const searchQuery = data.substring(7);
+                    await handleHistorySearch(bot, query, searchQuery, handleSearch);
+                    return;
+                }
+
+                if (data === 'clear_history') {
+                    await bot.answerCallbackQuery(query.id, { text: 'History cleared!' });
+                    return;
+                }
+
+                // Movie selection (new format)
+                if (data.startsWith('sel:')) {
+                    const index = data.split(':')[1];
+                    await handleMovieSelect(bot, query, index);
+                    return;
+                }
+
+                // Movie selection (old format)
+                if (data.startsWith('select:')) {
+                    const movieId = data.split(':')[1];
+                    await handleMovieSelect(bot, query, movieId);
+                    return;
+                }
+
+                // Pagination
+                if (data.startsWith('page:')) {
+                    const page = parseInt(data.split(':')[1]);
+                    await handlePageChange(bot, query, page);
+                    return;
+                }
+
+                // Get torrent (new format)
+                if (data.startsWith('get:')) {
+                    const parts = data.split(':');
+                    const movieIndex = parts[1];
+                    const torrentIndex = parts[2];
+                    await handleTorrentSelect(bot, query, movieIndex, torrentIndex);
+                    return;
+                }
+
+                // Download torrent (old format)
+                if (data.startsWith('dl:')) {
+                    const parts = data.split(':');
+                    const movieId = parts[1];
+                    const torrentIndex = parseInt(parts[2]);
+                    await handleTorrentSelect(bot, query, movieId, torrentIndex);
+                    return;
+                }
+
+                // Subtitle request
+                if (data.startsWith('sub:')) {
+                    const movieIndex = data.split(':')[1];
+                    await handleSubtitleRequest(bot, query, movieIndex);
+                    return;
+                }
+
+                // More sources
+                if (data.startsWith('more:')) {
+                    const movieId = data.split(':')[1];
+                    await handleMoreSources(bot, query, movieId);
+                    return;
+                }
+
+                // Scraper result
+                if (data.startsWith('scraper:')) {
+                    const index = parseInt(data.split(':')[1]);
+                    await handleScraperSelect(bot, query, index);
+                    return;
+                }
+
+                // Magnet link request
+                if (data.startsWith('magnet:')) {
+                    const parts = data.split(':');
+                    const movieId = parts[1];
+                    const torrentIndex = parseInt(parts[2]);
+                    await handleMagnetRequest(bot, query, movieId, torrentIndex);
+                    return;
+                }
+
+                // Unknown callback
+                await bot.answerCallbackQuery(query.id);
+
+            } catch (error) {
+                console.error('Callback error:', error);
                 await bot.answerCallbackQuery(query.id, {
-                    text: 'You are banned from using this bot.',
+                    text: 'An error occurred. Please try again.',
                     show_alert: true
                 });
-                return;
             }
+        });
 
-            // Terms acceptance
-            if (data === 'accept_terms') {
-                await handleAcceptTerms(bot, query);
-                return;
-            }
+        // ==================== ERROR HANDLING ====================
 
-            // Language selection
-            if (data === 'select_language') {
-                await handleLanguageSelect(bot, query);
-                return;
-            }
+        bot.on('polling_error', (error) => {
+            console.error('Polling error:', error.message);
+        });
 
-            if (data.startsWith('lang:')) {
-                const langCode = data.split(':')[1];
-                await handleLanguageChange(bot, query, langCode);
-                return;
-            }
+        bot.on('error', (error) => {
+            console.error('Bot error:', error.message);
+        });
 
-            // Navigation - Show Mini App button
-            if (data === 'back_main') {
-                try {
-                    await bot.editMessageText(
-                        `🎬 *به فیلم‌یاب خوش آمدید!*\n\nبرای جستجو و دانلود فیلم روی دکمه زیر کلیک کنید:`,
-                        {
-                            chat_id: query.message.chat.id,
-                            message_id: query.message.message_id,
-                            parse_mode: 'Markdown',
-                            reply_markup: {
-                                inline_keyboard: [
-                                    [
-                                        {
-                                            text: '🎬 ورود به فیلم‌یاب',
-                                            web_app: { url: WEBAPP_URL }
-                                        }
-                                    ],
-                                    [
-                                        { text: '🌐 زبان / Language', callback_data: 'select_language' },
-                                        { text: '📞 پشتیبانی', url: 'https://t.me/Mound84' }
-                                    ]
-                                ]
-                            }
-                        }
-                    );
-                } catch (e) { }
-                await bot.answerCallbackQuery(query.id);
-                return;
-            }
-
-            // Prompt for search
-            if (data === 'prompt_search') {
-                await bot.sendMessage(query.message.chat.id,
-                    '🔍 *اسم فیلم یا سریال رو بفرست تا پیداش کنم*\n\nمثال: `Avengers` یا `Breaking Bad`',
-                    { parse_mode: 'Markdown' }
-                );
-                await bot.answerCallbackQuery(query.id);
-                return;
-            }
-
-            // Trending
-            if (data === 'trending') {
-                await handleTrendingCallback(bot, query);
-                return;
-            }
-
-            if (data.startsWith('trending:')) {
-                const period = data.split(':')[1];
-                await handleTrendingPeriod(bot, query, period);
-                return;
-            }
-
-            // TV Series
-            if (data === 'tv_series') {
-                await handleTVSeries(bot, query);
-                return;
-            }
-
-            // Anime
-            if (data === 'anime') {
-                await handleAnime(bot, query);
-                return;
-            }
-
-            // Recommended
-            if (data === 'recommended') {
-                await handleRecommended(bot, query);
-                return;
-            }
-
-            if (data.startsWith('rec_genre:')) {
-                const genre = data.split(':')[1];
-                await handleRecommendedGenre(bot, query, genre);
-                return;
-            }
-
-            // Browse genres
-            if (data === 'browse') {
-                await handleBrowseCallback(bot, query);
-                return;
-            }
-
-            if (data.startsWith('genre:')) {
-                const genre = data.split(':')[1];
-                await handleGenreCallback(bot, query, genre);
-                return;
-            }
-
-            // Favorites
-            if (data === 'favorites') {
-                await handleFavoritesCallback(bot, query);
-                return;
-            }
-
-            if (data.startsWith('fav:')) {
-                const movieId = data.split(':')[1];
-                await handleAddFavorite(bot, query, movieId, null);
-                return;
-            }
-
-            if (data === 'clear_favorites') {
-                await handleClearFavorites(bot, query);
-                return;
-            }
-
-            // History
-            if (data === 'history') {
-                await handleHistoryCallback(bot, query);
-                return;
-            }
-
-            if (data.startsWith('search:')) {
-                const searchQuery = data.substring(7);
-                await handleHistorySearch(bot, query, searchQuery, handleSearch);
-                return;
-            }
-
-            if (data === 'clear_history') {
-                await bot.answerCallbackQuery(query.id, { text: 'History cleared!' });
-                return;
-            }
-
-            // Movie selection (new format)
-            if (data.startsWith('sel:')) {
-                const index = data.split(':')[1];
-                await handleMovieSelect(bot, query, index);
-                return;
-            }
-
-            // Movie selection (old format)
-            if (data.startsWith('select:')) {
-                const movieId = data.split(':')[1];
-                await handleMovieSelect(bot, query, movieId);
-                return;
-            }
-
-            // Pagination
-            if (data.startsWith('page:')) {
-                const page = parseInt(data.split(':')[1]);
-                await handlePageChange(bot, query, page);
-                return;
-            }
-
-            // Get torrent (new format)
-            if (data.startsWith('get:')) {
-                const parts = data.split(':');
-                const movieIndex = parts[1];
-                const torrentIndex = parts[2];
-                await handleTorrentSelect(bot, query, movieIndex, torrentIndex);
-                return;
-            }
-
-            // Download torrent (old format)
-            if (data.startsWith('dl:')) {
-                const parts = data.split(':');
-                const movieId = parts[1];
-                const torrentIndex = parseInt(parts[2]);
-                await handleTorrentSelect(bot, query, movieId, torrentIndex);
-                return;
-            }
-
-            // Subtitle request
-            if (data.startsWith('sub:')) {
-                const movieIndex = data.split(':')[1];
-                await handleSubtitleRequest(bot, query, movieIndex);
-                return;
-            }
-
-            // More sources
-            if (data.startsWith('more:')) {
-                const movieId = data.split(':')[1];
-                await handleMoreSources(bot, query, movieId);
-                return;
-            }
-
-            // Scraper result
-            if (data.startsWith('scraper:')) {
-                const index = parseInt(data.split(':')[1]);
-                await handleScraperSelect(bot, query, index);
-                return;
-            }
-
-            // Magnet link request
-            if (data.startsWith('magnet:')) {
-                const parts = data.split(':');
-                const movieId = parts[1];
-                const torrentIndex = parseInt(parts[2]);
-                await handleMagnetRequest(bot, query, movieId, torrentIndex);
-                return;
-            }
-
-            // Unknown callback
-            await bot.answerCallbackQuery(query.id);
-
-        } catch (error) {
-            console.error('Callback error:', error);
-            await bot.answerCallbackQuery(query.id, {
-                text: 'An error occurred. Please try again.',
-                show_alert: true
-            });
-        }
-    });
-
-    // ==================== ERROR HANDLING ====================
-
-    bot.on('polling_error', (error) => {
-        console.error('Polling error:', error.message);
-    });
-
-    bot.on('error', (error) => {
-        console.error('Bot error:', error.message);
-    });
+        console.log('✅ Bot is running! Press Ctrl+C to stop.');
+    } else {
+        console.log('✅ API server is running (no Telegram bot)');
+    }
 
     // ==================== GRACEFUL SHUTDOWN ====================
-
     process.on('SIGINT', () => {
         console.log('\n🛑 Shutting down...');
-        bot.stopPolling();
+        if (bot) bot.stopPolling();
         db.close();
         cache.destroy();
         rateLimiter.destroy();
@@ -1077,18 +1084,16 @@ async function main() {
 
     process.on('SIGTERM', () => {
         console.log('\n🛑 Shutting down...');
-        bot.stopPolling();
+        if (bot) bot.stopPolling();
         db.close();
         cache.destroy();
         rateLimiter.destroy();
         process.exit(0);
     });
-
-    console.log('✅ Bot is running! Press Ctrl+C to stop.');
 }
 
-// Start the bot
+// Start the server
 main().catch(error => {
-    console.error('Failed to start bot:', error);
+    console.error('Failed to start:', error);
     process.exit(1);
 });
