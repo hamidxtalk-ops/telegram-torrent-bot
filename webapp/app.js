@@ -194,6 +194,13 @@ async function searchMovies(query) {
     }
 }
 
+// Search from movie detail page (when no downloads found)
+async function searchFromDetail(title) {
+    if (!title) return;
+    elements.searchInput.value = title;
+    await searchMovies(title);
+}
+
 async function getTrending() {
     showLoadingSkeleton(elements.trendingMovies);
 
@@ -402,8 +409,11 @@ function renderMovieDetail(movie) {
     } else if (!torrents || torrents.length === 0) {
         elements.downloadLinks.innerHTML = actionsHTML + `
             <div class="empty-state">
-                <p>لینک دانلود موجود نیست</p>
-                <p style="font-size: 0.8rem; margin-top: 8px;">از طریق بات جستجو کنید</p>
+                <p>🔍 لینک دانلود یافت نشد</p>
+                <p style="font-size: 0.8rem; margin-top: 8px; color: var(--text-muted);">نام فیلم را در کادر جستجو وارد کنید</p>
+                <button onclick="searchFromDetail('${escapeHtml(movie.title)}')" style="margin-top: 12px; padding: 10px 20px; background: var(--accent-gradient); border: none; border-radius: 10px; color: white; cursor: pointer;">
+                    🔎 جستجوی "${movie.title?.substring(0, 20) || 'فیلم'}"
+                </button>
             </div>
         `;
     } else {
@@ -419,8 +429,11 @@ function renderMovieDetail(movie) {
         if (filteredTorrents.length === 0) {
             elements.downloadLinks.innerHTML = actionsHTML + `
                 <div class="empty-state">
-                    <p>لینک دانلود موجود نیست</p>
-                    <p style="font-size: 0.8rem; margin-top: 8px;">از طریق بات جستجو کنید</p>
+                    <p>🔍 لینک دانلود یافت نشد</p>
+                    <p style="font-size: 0.8rem; margin-top: 8px; color: var(--text-muted);">نام فیلم را در کادر جستجو وارد کنید</p>
+                    <button onclick="searchFromDetail('${escapeHtml(movie.title)}')" style="margin-top: 12px; padding: 10px 20px; background: var(--accent-gradient); border: none; border-radius: 10px; color: white; cursor: pointer;">
+                        🔎 جستجوی "${movie.title?.substring(0, 20) || 'فیلم'}"
+                    </button>
                 </div>
             `;
         } else {

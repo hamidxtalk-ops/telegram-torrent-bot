@@ -208,76 +208,167 @@ app.get('/api/genres', async (req, res) => {
     res.json({ genres });
 });
 
-// Browse by Genre API
+// Browse by Genre API - with torrent search
 app.get('/api/genre/:id', async (req, res) => {
     try {
         const genreId = req.params.id;
         console.log(`🎭 API genre: ${genreId}`);
 
         const movies = await tmdb.discoverByGenre(genreId);
-        const results = movies.map((movie, index) => ({
-            id: movie.id || index,
-            title: movie.title || movie.name,
-            year: movie.release_date?.substring(0, 4),
-            rating: movie.vote_average?.toFixed(1),
-            poster: movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : null,
-            posterLarge: movie.backdrop_path ? `https://image.tmdb.org/t/p/w780${movie.backdrop_path}` : null,
-            overview: movie.overview,
-            torrents: []
-        }));
 
-        res.json({ results: results.slice(0, 20) });
+        // Get torrents for first 10 movies in parallel
+        const moviesWithTorrents = await Promise.all(
+            movies.slice(0, 10).map(async (movie, index) => {
+                const title = movie.title || movie.name;
+                let torrents = [];
+
+                try {
+                    // Quick search from YTS only (fast)
+                    const ytsResult = await Promise.race([
+                        yts.searchMovies(title, 2),
+                        new Promise((_, reject) => setTimeout(() => reject('timeout'), 5000))
+                    ]).catch(() => []);
+
+                    if (ytsResult?.[0]?.torrents) {
+                        torrents = ytsResult[0].torrents.map(t => ({
+                            ...t,
+                            source: 'YTS',
+                            type: 'torrent'
+                        }));
+                    }
+                } catch (e) { }
+
+                return {
+                    id: movie.id || index,
+                    title,
+                    year: movie.release_date?.substring(0, 4),
+                    rating: movie.vote_average?.toFixed(1),
+                    poster: movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : null,
+                    posterLarge: movie.backdrop_path ? `https://image.tmdb.org/t/p/w780${movie.backdrop_path}` : null,
+                    overview: movie.overview,
+                    torrents
+                };
+            })
+        );
+
+        res.json({ results: moviesWithTorrents });
     } catch (error) {
         console.error('API genre error:', error);
-        res.status(500).json({ error: 'Failed to get movies by genre' });
+        res.status(500).json({ error: 'Failed to get movies by genre', results: [] });
     }
 });
 
-// TV Series API
+// TV Series API - with torrent search  
 app.get('/api/tv', async (req, res) => {
     try {
         console.log('📺 API TV series');
         const tvShows = await tmdb.getPopularTV();
-        const results = tvShows.map((show, index) => ({
-            id: show.id || index,
-            title: show.name,
-            year: show.first_air_date?.substring(0, 4),
-            rating: show.vote_average?.toFixed(1),
-            poster: show.poster_path ? `https://image.tmdb.org/t/p/w342${show.poster_path}` : null,
-            posterLarge: show.backdrop_path ? `https://image.tmdb.org/t/p/w780${show.backdrop_path}` : null,
-            overview: show.overview,
-            mediaType: 'tv',
-            torrents: []
-        }));
 
-        res.json({ results: results.slice(0, 20) });
+        // Get torrents for first 10 shows in parallel
+        const showsWithTorrents = await Promise.all(
+            tvShows.slice(0, 10).map(async (show, index) => {
+                const title = show.name;
+                let torrents = [];
+
+                try {
+                    // Quick search from 1337x for TV (fast)
+                    const result = await Promise.race([
+                        scraper1337x.searchWithMagnets(title, 3),
+                        new Promise((_, reject) => setTimeout(() => reject('timeout'), 5000))
+                    ]).catch(() => []);
+
+                    if (result?.[0]?.torrents) {
+                        torrents = result[0].torrents.map(t => ({
+                            ...t,
+                            source: '1337x',
+                            type: 'torrent'
+                        }));
+                    }
+                } catch (e) { }
+
+                return {
+                    id: show.id || index,
+                    title,
+                    year: show.first_air_date?.substring(0, 4),
+                    rating: show.vote_average?.toFixed(1),
+                    poster: show.poster_path ? `https://image.tmdb.org/t/p/w342${show.poster_path}` : null,
+                    posterLarge: show.backdrop_path ? `https://image.tmdb.org/t/p/w780${show.backdrop_path}` : null,
+                    overview: show.overview,
+                    mediaType: 'tv',
+                    torrents
+                };
+            })
+        );
+
+        res.json({ results: showsWithTorrents });
     } catch (error) {
         console.error('API TV error:', error);
-        res.status(500).json({ error: 'Failed to get TV series' });
+        res.status(500).json({ error: 'Failed to get TV series', results: [] });
     }
 });
 
-// Anime API
+// Anime API - with torrent search
 app.get('/api/anime', async (req, res) => {
     try {
         console.log('🎌 API Anime');
         const anime = await tmdb.discoverByGenre(16); // Animation genre
-        const results = anime.map((show, index) => ({
-            id: show.id || index,
-            title: show.title || show.name,
-            year: show.release_date?.substring(0, 4) || show.first_air_date?.substring(0, 4),
-            rating: show.vote_average?.toFixed(1),
-            poster: show.poster_path ? `https://image.tmdb.org/t/p/w342${show.poster_path}` : null,
-            posterLarge: show.backdrop_path ? `https://image.tmdb.org/t/p/w780${show.backdrop_path}` : null,
-            overview: show.overview,
-            mediaType: 'anime',
-            torrents: []
-        }));
 
-        res.json({ results: results.slice(0, 20) });
+        // Get torrents for first 10 anime in parallel
+        const animeWithTorrents = await Promise.all(
+            anime.slice(0, 10).map(async (show, index) => {
+                const title = show.title || show.name;
+                let torrents = [];
+
+                try {
+                    // Search from Nyaa for anime (specialized)
+                    const result = await Promise.race([
+                        scraperNyaa.searchWithMagnets(title, 3),
+                        new Promise((_, reject) => setTimeout(() => reject('timeout'), 5000))
+                    ]).catch(() => []);
+
+                    if (result?.[0]?.torrents) {
+                        torrents = result[0].torrents.map(t => ({
+                            ...t,
+                            source: 'Nyaa',
+                            type: 'torrent'
+                        }));
+                    }
+
+                    // Fallback to 1337x if no Nyaa results
+                    if (torrents.length === 0) {
+                        const x1337Result = await Promise.race([
+                            scraper1337x.searchWithMagnets(title + ' anime', 2),
+                            new Promise((_, reject) => setTimeout(() => reject('timeout'), 4000))
+                        ]).catch(() => []);
+
+                        if (x1337Result?.[0]?.torrents) {
+                            torrents = x1337Result[0].torrents.map(t => ({
+                                ...t,
+                                source: '1337x',
+                                type: 'torrent'
+                            }));
+                        }
+                    }
+                } catch (e) { }
+
+                return {
+                    id: show.id || index,
+                    title,
+                    year: show.release_date?.substring(0, 4) || show.first_air_date?.substring(0, 4),
+                    rating: show.vote_average?.toFixed(1),
+                    poster: show.poster_path ? `https://image.tmdb.org/t/p/w342${show.poster_path}` : null,
+                    posterLarge: show.backdrop_path ? `https://image.tmdb.org/t/p/w780${show.backdrop_path}` : null,
+                    overview: show.overview,
+                    mediaType: 'anime',
+                    torrents
+                };
+            })
+        );
+
+        res.json({ results: animeWithTorrents });
     } catch (error) {
         console.error('API anime error:', error);
-        res.status(500).json({ error: 'Failed to get anime' });
+        res.status(500).json({ error: 'Failed to get anime', results: [] });
     }
 });
 
