@@ -427,47 +427,52 @@ function renderMovieDetail(movie) {
             </div>
         `;
     } else if (!torrents || torrents.length === 0) {
-        elements.downloadLinks.innerHTML = actionsHTML;
+        // Show message when no links available
+        elements.downloadLinks.innerHTML = actionsHTML + `
+            <div style="text-align:center;padding:20px;color:var(--text-secondary);">
+                <p>🔍 لینک دانلود یافت نشد</p>
+                <p style="font-size:0.85rem;margin-top:8px;">برای جستجوی بیشتر از صفحه اصلی جستجو کنید</p>
+            </div>
+        `;
     } else {
-        // Filter: Only Telegram and Torrent (magnet) links
-        const filteredTorrents = torrents.filter(torrent => {
-            const isTelegramBot = torrent.isTelegramBot || (torrent.magnetLink && torrent.magnetLink.includes('t.me'));
-            const isMagnet = torrent.magnetLink && torrent.magnetLink.startsWith('magnet:');
-            return isTelegramBot || isMagnet;
-        });
+        // Show ALL torrents (no filtering - show everything we have)
+        const linksHTML = torrents.map((torrent, i) => {
+            // Determine link type - check all possible link fields
+            const link = torrent.magnetLink || torrent.url || torrent.link || '';
+            const isTelegramBot = torrent.isTelegramBot || link.includes('t.me');
+            const isMagnet = link.startsWith('magnet:');
+            const isDirect = link.startsWith('http') && !link.includes('t.me');
 
-        if (filteredTorrents.length === 0) {
-            elements.downloadLinks.innerHTML = actionsHTML;
-        } else {
-            const linksHTML = filteredTorrents.map((torrent, i) => {
-                const isTelegramBot = torrent.isTelegramBot || (torrent.magnetLink && torrent.magnetLink.includes('t.me'));
-                const isMagnet = torrent.magnetLink && torrent.magnetLink.startsWith('magnet:');
+            // Determine icon and type
+            let icon = '📥';
+            let typeClass = 'direct';
+            if (isTelegramBot) {
+                icon = '📱';
+                typeClass = 'telegram';
+            } else if (isMagnet) {
+                icon = '🧲';
+                typeClass = 'torrent';
+            }
 
-                // Clean button design
-                const icon = isTelegramBot ? '📱' : '🧲';
-                const typeLabel = isTelegramBot ? 'تلگرام' : 'تورنت';
-                const typeClass = isTelegramBot ? 'telegram' : 'torrent';
+            const escapedLink = escapeHtml(link);
+            const escapedQuality = escapeHtml(torrent.quality || 'کیفیت نامشخص');
+            const escapedSource = escapeHtml(torrent.source || '');
 
-                const escapedLink = escapeHtml(torrent.magnetLink || '');
-                const escapedQuality = escapeHtml(torrent.quality || '');
-                const escapedSource = escapeHtml(torrent.source || '');
+            return `
+                <button class="download-item ${typeClass}" 
+                        onclick="showDownloadModal('${escapedLink}', '${escapedQuality}', '${escapedSource}')"
+                        data-link="${escapedLink}">
+                    <div class="download-item-icon">${icon}</div>
+                    <div class="download-item-details">
+                        <span class="download-item-quality">${torrent.quality || 'نامشخص'}</span>
+                        <span class="download-item-meta">${torrent.source || ''} ${torrent.size || ''}</span>
+                    </div>
+                    <div class="download-item-arrow">←</div>
+                </button>
+            `;
+        }).join('');
 
-                return `
-                    <button class="download-item ${typeClass}" 
-                            onclick="showDownloadModal('${escapedLink}', '${escapedQuality}', '${escapedSource}')"
-                            data-link="${escapedLink}">
-                        <div class="download-item-icon">${icon}</div>
-                        <div class="download-item-details">
-                            <span class="download-item-quality">${torrent.quality || 'نامشخص'}</span>
-                            <span class="download-item-meta">${torrent.source || ''} ${torrent.size || ''}</span>
-                        </div>
-                        <div class="download-item-arrow">←</div>
-                    </button>
-                `;
-            }).join('');
-
-            elements.downloadLinks.innerHTML = actionsHTML + `<div class="downloads-list">${linksHTML}</div>`;
-        }
+        elements.downloadLinks.innerHTML = actionsHTML + `<div class="downloads-list">${linksHTML}</div>`;
     }
 }
 
@@ -621,12 +626,35 @@ function handleTelegramLink(event, element) {
     }
 }
 
-// Download modal for torrent links - with WebTorrent support
+// Download modal for all link types
 let webTorrentClient = null;
 let currentTorrent = null;
 
-function showDownloadModal(magnetLink, quality, source) {
-    // Create modal if it doesn't exist
+function showDownloadModal(link, quality, source) {
+    // Determine link type
+    const isTelegram = link.includes('t.me');
+    const isMagnet = link.startsWith('magnet:');
+    const isDirect = link.startsWith('http') && !isTelegram;
+
+    // For Telegram links - open directly
+    if (isTelegram) {
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.openTelegramLink(link);
+        } else {
+            window.open(link, '_blank');
+        }
+        showToast('📱 در حال انتقال به تلگرام...');
+        return;
+    }
+
+    // For direct download links - open in new tab
+    if (isDirect) {
+        window.open(link, '_blank');
+        showToast('📥 دانلود شروع شد');
+        return;
+    }
+
+    // For magnet links - show modal with options
     let modal = document.getElementById('download-modal');
     if (!modal) {
         modal = document.createElement('div');
@@ -667,7 +695,7 @@ function showDownloadModal(magnetLink, quality, source) {
                             📋 کپی لینک
                         </button>
                     </div>
-                    <p style="margin-top: 16px; font-size: 0.75rem; color: var(--text-muted); text-align: center;">
+                    <p id="modal-hint" style="margin-top: 16px; font-size: 0.75rem; color: var(--text-muted); text-align: center;">
                         دانلود در مرورگر نیاز به نرم‌افزار ندارد
                     </p>
                 </div>
@@ -691,6 +719,7 @@ function showDownloadModal(magnetLink, quality, source) {
     // Reset progress section
     const progressSection = modal.querySelector('#download-progress');
     const buttonsSection = modal.querySelector('#download-buttons');
+    const hintSection = modal.querySelector('#modal-hint');
     progressSection.style.display = 'none';
     buttonsSection.style.display = 'flex';
 
@@ -699,15 +728,25 @@ function showDownloadModal(magnetLink, quality, source) {
     const downloadBtn = modal.querySelector('#modal-download-btn');
     const copyBtn = modal.querySelector('#modal-copy-btn');
 
-    webTorrentBtn.onclick = () => startWebTorrentDownload(magnetLink);
+    // Check if WebTorrent is available
+    const hasWebTorrent = typeof WebTorrent !== 'undefined';
+
+    if (hasWebTorrent) {
+        webTorrentBtn.style.display = 'flex';
+        webTorrentBtn.onclick = () => startWebTorrentDownload(link);
+        hintSection.textContent = 'دانلود در مرورگر نیاز به نرم‌افزار ندارد';
+    } else {
+        webTorrentBtn.style.display = 'none';
+        hintSection.textContent = 'برای دانلود تورنت، از نرم‌افزار uTorrent یا qBittorrent استفاده کنید';
+    }
 
     downloadBtn.onclick = () => {
-        window.location.href = magnetLink;
+        window.location.href = link;
         closeDownloadModal();
         showToast('🧲 در حال باز کردن در نرم‌افزار تورنت...');
     };
 
-    copyBtn.onclick = () => copyMagnetLink(magnetLink);
+    copyBtn.onclick = () => copyMagnetLink(link);
 
     // Show modal
     modal.classList.remove('hidden');
@@ -745,6 +784,20 @@ function startWebTorrentDownload(magnetLink) {
         webTorrentClient = new WebTorrent();
     }
 
+    // Create download entry for downloads manager
+    const downloadId = Date.now();
+    const downloadEntry = {
+        id: downloadId,
+        name: 'در حال دریافت اطلاعات...',
+        progress: 0,
+        speed: '0 KB/s',
+        torrent: null,
+        magnetLink: magnetLink
+    };
+    state.activeDownloads.push(downloadEntry);
+    renderDownloadsView();
+    showToast('📥 دانلود به لیست اضافه شد');
+
     // Start download
     currentTorrent = webTorrentClient.add(magnetLink, {
         announce: [
@@ -754,8 +807,17 @@ function startWebTorrentDownload(magnetLink) {
         ]
     });
 
+    // Save torrent reference
+    downloadEntry.torrent = currentTorrent;
+
     currentTorrent.on('metadata', () => {
         progressStatus.textContent = `📦 ${currentTorrent.name}`;
+        // Update download entry name
+        const idx = state.activeDownloads.findIndex(d => d.id === downloadId);
+        if (idx !== -1) {
+            state.activeDownloads[idx].name = currentTorrent.name;
+            renderDownloadsView();
+        }
     });
 
     currentTorrent.on('download', () => {
@@ -765,6 +827,14 @@ function startWebTorrentDownload(magnetLink) {
         progressBar.style.width = percent + '%';
         progressPercent.textContent = percent + '%';
         progressSpeed.textContent = speed;
+
+        // Update download entry progress
+        const idx = state.activeDownloads.findIndex(d => d.id === downloadId);
+        if (idx !== -1) {
+            state.activeDownloads[idx].progress = parseFloat(percent);
+            state.activeDownloads[idx].speed = speed;
+            renderDownloadsView();
+        }
     });
 
     currentTorrent.on('done', () => {
@@ -772,25 +842,43 @@ function startWebTorrentDownload(magnetLink) {
         progressPercent.textContent = '100%';
         progressSpeed.textContent = '';
 
-        // Create download link for files
-        currentTorrent.files.forEach(file => {
-            file.getBlobURL((err, url) => {
-                if (err) return console.error(err);
+        // Move from active to completed
+        const idx = state.activeDownloads.findIndex(d => d.id === downloadId);
+        if (idx !== -1) {
+            const completed = state.activeDownloads.splice(idx, 1)[0];
 
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = file.name;
-                a.click();
+            // Create download links for files and add to completed
+            currentTorrent.files.forEach(file => {
+                file.getBlobURL((err, url) => {
+                    if (err) return console.error(err);
+
+                    // Add to completed downloads
+                    addToDownloads(file.name, url, formatBytes(file.length));
+
+                    // Auto-download the file
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = file.name;
+                    a.click();
+                });
             });
-        });
+        }
 
-        showToast('✅ دانلود کامل شد!');
+        renderDownloadsView();
+        showToast('✅ دانلود کامل شد! فایل در بخش دانلودها');
     });
 
     currentTorrent.on('error', (err) => {
         console.error('Torrent error:', err);
         progressStatus.textContent = '❌ خطا در دانلود';
         showToast('❌ خطا در دانلود تورنت');
+
+        // Remove from active downloads
+        const idx = state.activeDownloads.findIndex(d => d.id === downloadId);
+        if (idx !== -1) {
+            state.activeDownloads.splice(idx, 1);
+            renderDownloadsView();
+        }
 
         // Show buttons again
         setTimeout(() => {

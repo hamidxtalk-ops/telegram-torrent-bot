@@ -348,6 +348,50 @@ function formatMovieDetails(movie) {
         tagline: movie.tagline,
         source: 'tmdb'
     };
+};
+
+/**
+ * Get popular TV series
+ */
+export async function getPopularTV(page = 1) {
+    const { client, hasKey } = createClient();
+    if (!hasKey) return [];
+
+    try {
+        const response = await client.get('/tv/popular', {
+            params: { page }
+        });
+
+        console.log('✅ TMDb popular TV successful');
+        return (response.data?.results || []).map(formatTVShow);
+    } catch (error) {
+        console.error('TMDb API Error:', error.message);
+        return [];
+    }
+}
+
+/**
+ * Discover movies by genre (alias for browseByGenre)
+ */
+export async function discoverByGenre(genreId, page = 1) {
+    const { client, hasKey } = createClient();
+    if (!hasKey) return [];
+
+    try {
+        const response = await client.get('/discover/movie', {
+            params: {
+                with_genres: genreId,
+                sort_by: 'popularity.desc',
+                page: page
+            }
+        });
+
+        console.log('✅ TMDb discover by genre successful');
+        return (response.data?.results || []).map(formatMovie);
+    } catch (error) {
+        console.error('TMDb API Error:', error.message);
+        return [];
+    }
 }
 
 // Genre ID mapping for TMDb
@@ -383,6 +427,8 @@ export default {
     getAnimationMovies,
     getAnimeTV,
     browseByGenre,
+    discoverByGenre,
+    getPopularTV,
     getPosterUrl,
     GENRE_MAP
 };

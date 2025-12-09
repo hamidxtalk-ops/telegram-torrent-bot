@@ -13,15 +13,37 @@ const CHANNELS = [
     { name: 'Filmeeh1', displayName: 'فیلمه 1', priority: 1 },
     { name: 'Filmeh_Archive', displayName: 'آرشیو فیلمه', priority: 1 },
     { name: 'Filmeeh_GP', displayName: 'فیلمه GP', priority: 1 },
+    { name: 'WhenMoviez', displayName: 'When Moviez', priority: 1 },
 
-    // سایر کانال‌های موجود
-    { name: 'WhenMoviez', displayName: 'When Moviez', priority: 2 },
+    // کانال‌های بزرگ ایرانی - اولویت دوم
     { name: 'Film_Bazzanz', displayName: 'Film Bazzan', priority: 2 },
     { name: 'FilmpokVvip', displayName: 'Filmpok VIP', priority: 2 },
     { name: 'Filmseven_asli7', displayName: 'Film7', priority: 2 },
     { name: 'Mr_Film78', displayName: 'Mr Film', priority: 2 },
     { name: 'Sitofilm', displayName: 'Sito Film', priority: 2 },
-    { name: 'CastroFilm4', displayName: 'Castro Film', priority: 2 }
+    { name: 'CastroFilm4', displayName: 'Castro Film', priority: 2 },
+
+    // کانال‌های جدید با پوشش گسترده
+    { name: 'MovieDL_ir', displayName: 'MovieDL', priority: 2 },
+    { name: 'Filmkadeh1', displayName: 'فیلمکده', priority: 2 },
+    { name: 'FilmHD1080', displayName: 'Film HD 1080', priority: 2 },
+    { name: 'Filmiha', displayName: 'فیلمیها', priority: 2 },
+    { name: 'DigiMoviezz', displayName: 'DigiMoviez', priority: 2 },
+    { name: 'FilmabadMovie', displayName: 'فیلم‌آباد', priority: 2 },
+    { name: 'UpMovies1', displayName: 'UpMovies', priority: 2 },
+    { name: 'MovieBox_ir', displayName: 'MovieBox', priority: 2 },
+
+    // کانال‌های سریال و انیمه
+    { name: 'SerialHD480', displayName: 'سریال HD', priority: 3 },
+    { name: 'Anime_IR', displayName: 'انیمه ایران', priority: 3 },
+    { name: 'KoreaDrama', displayName: 'کره دراما', priority: 3 },
+    { name: 'TurkDizi_ir', displayName: 'سریال ترکی', priority: 3 },
+
+    // کانال‌های پوشش کامل
+    { name: 'Full_Movie_ir', displayName: 'Full Movie', priority: 3 },
+    { name: 'MyFilmm', displayName: 'مای فیلم', priority: 3 },
+    { name: 'Film2Khone', displayName: 'فیلم تو خونه', priority: 3 },
+    { name: 'MovieLand_ir', displayName: 'MovieLand', priority: 3 }
 ];
 
 // بات‌های تلگرام - غیرفعال (این بات‌ها توسط تلگرام مسدود شده‌اند)
