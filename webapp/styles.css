@@ -981,6 +981,7 @@ body::before {
     cursor: pointer;
     transition: all var(--transition-normal);
     white-space: nowrap;
+    margin-left: 100px;
 }
 
 .start-magnet-btn:hover {
