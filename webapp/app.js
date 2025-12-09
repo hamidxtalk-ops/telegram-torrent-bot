@@ -322,10 +322,14 @@ async function getMovieDetails(movieId) {
 // ===================================
 
 function renderMovieGrid(container, movies) {
+    // Use data-src for lazy loading instead of inline background-image
     container.innerHTML = movies.map((movie, index) => `
         <div class="movie-card" data-movie-id="${movie.id || index}" data-index="${index}">
-            <div class="movie-card-poster" style="background-image: url('${movie.poster || movie.posterLarge || getPlaceholderPoster()}')">
+            <div class="movie-card-poster" 
+                 data-poster="${movie.poster || movie.posterLarge || ''}"
+                 style="background-color: var(--bg-card);">
                 ${movie.rating ? `<span class="movie-card-rating">⭐ ${movie.rating}</span>` : ''}
+                <div class="poster-loader"></div>
             </div>
             <div class="movie-card-info">
                 <div class="movie-card-title">${escapeHtml(movie.title)}</div>
@@ -333,6 +337,47 @@ function renderMovieGrid(container, movies) {
             </div>
         </div>
     `).join('');
+
+    // Lazy load images with IntersectionObserver
+    const lazyLoadImages = () => {
+        const posters = container.querySelectorAll('.movie-card-poster[data-poster]');
+
+        if ('IntersectionObserver' in window) {
+            const imageObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const poster = entry.target;
+                        const src = poster.dataset.poster;
+                        if (src) {
+                            // Preload image
+                            const img = new Image();
+                            img.onload = () => {
+                                poster.style.backgroundImage = `url('${src}')`;
+                                poster.classList.add('loaded');
+                            };
+                            img.src = src;
+                        } else {
+                            poster.style.backgroundImage = `url('${getPlaceholderPoster()}')`;
+                            poster.classList.add('loaded');
+                        }
+                        imageObserver.unobserve(poster);
+                    }
+                });
+            }, { rootMargin: '100px' }); // Load 100px before entering viewport
+
+            posters.forEach(poster => imageObserver.observe(poster));
+        } else {
+            // Fallback for old browsers
+            posters.forEach(poster => {
+                const src = poster.dataset.poster;
+                poster.style.backgroundImage = `url('${src || getPlaceholderPoster()}')`;
+                poster.classList.add('loaded');
+            });
+        }
+    };
+
+    // Start lazy loading
+    requestAnimationFrame(lazyLoadImages);
 
     // Add click listeners
     container.querySelectorAll('.movie-card').forEach(card => {
@@ -407,15 +452,8 @@ function renderMovieDetail(movie) {
             </div>
         `;
     } else if (!torrents || torrents.length === 0) {
-        elements.downloadLinks.innerHTML = actionsHTML + `
-            <div class="empty-state">
-                <p>🔍 لینک دانلود یافت نشد</p>
-                <p style="font-size: 0.8rem; margin-top: 8px; color: var(--text-muted);">نام فیلم را در کادر جستجو وارد کنید</p>
-                <button onclick="searchFromDetail('${escapeHtml(movie.title)}')" style="margin-top: 12px; padding: 10px 20px; background: var(--accent-gradient); border: none; border-radius: 10px; color: white; cursor: pointer;">
-                    🔎 جستجوی "${movie.title?.substring(0, 20) || 'فیلم'}"
-                </button>
-            </div>
-        `;
+        // Just show action buttons, no extra message
+        elements.downloadLinks.innerHTML = actionsHTML;
     } else {
         // Filter: Only Telegram and Torrent (magnet) links - no direct downloads
         const filteredTorrents = torrents.filter(torrent => {
@@ -427,15 +465,8 @@ function renderMovieDetail(movie) {
         });
 
         if (filteredTorrents.length === 0) {
-            elements.downloadLinks.innerHTML = actionsHTML + `
-                <div class="empty-state">
-                    <p>🔍 لینک دانلود یافت نشد</p>
-                    <p style="font-size: 0.8rem; margin-top: 8px; color: var(--text-muted);">نام فیلم را در کادر جستجو وارد کنید</p>
-                    <button onclick="searchFromDetail('${escapeHtml(movie.title)}')" style="margin-top: 12px; padding: 10px 20px; background: var(--accent-gradient); border: none; border-radius: 10px; color: white; cursor: pointer;">
-                        🔎 جستجوی "${movie.title?.substring(0, 20) || 'فیلم'}"
-                    </button>
-                </div>
-            `;
+            // Just show action buttons, no extra message
+            elements.downloadLinks.innerHTML = actionsHTML;
         } else {
             const linksHTML = filteredTorrents.map((torrent, i) => {
                 const isTelegramBot = torrent.isTelegramBot || (torrent.magnetLink && torrent.magnetLink.includes('t.me'));
@@ -454,20 +485,20 @@ function renderMovieDetail(movie) {
 
                 // For magnets, show modal with options. For Telegram, open directly
                 const clickHandler = isMagnet
-                    ? `onclick="showDownloadModal('${escapeHtml(torrent.magnetLink)}', '${escapeHtml(torrent.quality || '')}', '${escapeHtml(torrent.source || '')}')"`
-                    : `onclick="handleTelegramLink(event, this)"`;
+                    ? `onclick = "showDownloadModal('${escapeHtml(torrent.magnetLink)}', '${escapeHtml(torrent.quality || '')}', '${escapeHtml(torrent.source || '')}')"`
+                    : `onclick = "handleTelegramLink(event, this)"`;
 
                 return `
-                    <button ${clickHandler}
-                       class="download-btn ${typeClass}"
-                       data-link="${escapeHtml(torrent.magnetLink)}">
+                < button ${clickHandler}
+            class="download-btn ${typeClass}"
+            data - link="${escapeHtml(torrent.magnetLink)}" >
                         <div class="download-info">
                             <span class="download-type-badge">${typeBadge}</span>
                             <span class="download-quality">${torrent.quality || 'نامشخص'}</span>
                             <span class="download-source">${torrent.source || 'نامشخص'}</span>
                         </div>
                         <span class="download-size">${torrent.size || ''}</span>
-                    </button>
+                    </button >
                 `;
             }).join('');
 
@@ -478,23 +509,23 @@ function renderMovieDetail(movie) {
 
 function showLoadingSkeleton(container, count = 6) {
     container.innerHTML = Array(count).fill(`
-        <div class="movie-card skeleton">
+                < div class="movie-card skeleton" >
             <div class="movie-card-poster skeleton"></div>
             <div class="movie-card-info">
                 <div class="skeleton" style="height: 16px; margin-bottom: 4px;"></div>
                 <div class="skeleton" style="height: 12px; width: 50%;"></div>
             </div>
-        </div>
-    `).join('');
+        </div >
+                `).join('');
 }
 
 function showEmptyState(container, message) {
     container.innerHTML = `
-        <div class="empty-state" style="grid-column: 1 / -1;">
+                < div class="empty-state" style = "grid-column: 1 / -1;" >
             <div class="empty-state-icon">🎬</div>
             <p>${message}</p>
-        </div>
-    `;
+        </div >
+                `;
 }
 
 function renderGenres(genres) {
@@ -512,11 +543,11 @@ function renderGenres(genres) {
     };
 
     elements.genresList.innerHTML = genres.map(genre => `
-        <div class="genre-card" data-genre-id="${genre.id}" data-genre-name="${genre.name}">
+                < div class="genre-card" data - genre - id="${genre.id}" data - genre - name="${genre.name}" >
             <span class="genre-icon">${genreIcons[genre.id] || '🎬'}</span>
             <span class="genre-name">${genre.name}</span>
-        </div>
-    `).join('');
+        </div >
+                `).join('');
 
     // Add click listeners
     elements.genresList.querySelectorAll('.genre-card').forEach(card => {
@@ -571,7 +602,7 @@ function showDownloadModal(magnetLink, quality, source) {
         modal.id = 'download-modal';
         modal.className = 'modal-overlay hidden';
         modal.innerHTML = `
-            <div class="modal-content" style="max-width: 350px;">
+                < div class="modal-content" style = "max-width: 350px;" >
                 <div class="modal-header">
                     <h3>🧲 دانلود تورنت</h3>
                     <button class="modal-close" onclick="closeDownloadModal()">×</button>
@@ -593,8 +624,8 @@ function showDownloadModal(magnetLink, quality, source) {
                         برای دانلود به نرم‌افزار تورنت نیاز دارید
                     </p>
                 </div>
-            </div>
-        `;
+            </div >
+                `;
         document.body.appendChild(modal);
 
         // Close on backdrop click
@@ -606,9 +637,9 @@ function showDownloadModal(magnetLink, quality, source) {
     // Update modal content
     const infoDiv = modal.querySelector('#download-modal-info');
     infoDiv.innerHTML = `
-        <p style="font-size: 1rem; font-weight: 600;">${quality || 'کیفیت نامشخص'}</p>
-        <p style="font-size: 0.85rem; color: var(--text-secondary);">منبع: ${source || 'نامشخص'}</p>
-    `;
+                < p style = "font-size: 1rem; font-weight: 600;" > ${quality || 'کیفیت نامشخص'}</p >
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">منبع: ${source || 'نامشخص'}</p>
+            `;
 
     // Set up button actions
     const downloadBtn = modal.querySelector('#modal-download-btn');
@@ -780,7 +811,7 @@ async function searchSubtitles(title, year) {
     showToast('🔍 در حال جستجوی زیرنویس...');
 
     try {
-        const data = await apiRequest(`/api/subtitles?title=${encodeURIComponent(title)}&year=${year}`);
+        const data = await apiRequest(`/ api / subtitles ? title = ${encodeURIComponent(title)}& year=${year} `);
         const subtitles = data.subtitles || [];
 
         if (subtitles.length === 0) {
@@ -796,26 +827,26 @@ async function searchSubtitles(title, year) {
 
         // Show subtitle modal
         const modalHTML = `
-            <div class="modal-overlay" onclick="closeModal(event)">
-                <div class="modal-content" onclick="event.stopPropagation()">
-                    <div class="modal-header">
-                        <h3>📝 زیرنویس فارسی</h3>
-                        <button class="modal-close" onclick="closeModal()">✕</button>
-                    </div>
-                    <div class="modal-body">
-                        ${subtitles.map(sub => `
+                < div class="modal-overlay" onclick = "closeModal(event)" >
+                    <div class="modal-content" onclick="event.stopPropagation()">
+                        <div class="modal-header">
+                            <h3>📝 زیرنویس فارسی</h3>
+                            <button class="modal-close" onclick="closeModal()">✕</button>
+                        </div>
+                        <div class="modal-body">
+                            ${subtitles.map(sub => `
                             <a href="${sub.url}" class="subtitle-item" target="_blank">
                                 <span class="subtitle-name">${sub.name.substring(0, 50)}</span>
                                 <span class="subtitle-author">👤 ${sub.author}</span>
                             </a>
                         `).join('')}
-                        <a href="${data.searchUrl}" class="subtitle-more" target="_blank">
-                            🔍 جستجوی بیشتر در Subscene
-                        </a>
+                            <a href="${data.searchUrl}" class="subtitle-more" target="_blank">
+                                🔍 جستجوی بیشتر در Subscene
+                            </a>
+                        </div>
                     </div>
-                </div>
-            </div>
-        `;
+            </div >
+                `;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     } catch (error) {
         showToast('❌ خطا در جستجوی زیرنویس');
@@ -824,40 +855,40 @@ async function searchSubtitles(title, year) {
 
 function showDownloadGuide() {
     const modalHTML = `
-        <div class="modal-overlay" onclick="closeModal(event)">
-            <div class="modal-content guide-modal" onclick="event.stopPropagation()">
-                <div class="modal-header">
-                    <h3>📥 راهنمای دانلود</h3>
-                    <button class="modal-close" onclick="closeModal()">✕</button>
-                </div>
-                <div class="modal-body">
-                    <div class="guide-section">
-                        <h4>📱 بات تلگرام <span class="guide-badge telegram">Filmeh, CastroFilm</span></h4>
-                        <ul>
-                            <li>روی لینک کلیک کنید</li>
-                            <li>به بات تلگرام منتقل می‌شوید</li>
-                            <li>دکمه Start را بزنید</li>
-                            <li>✅ فایل در تلگرام دریافت کنید</li>
-                        </ul>
+                < div class="modal-overlay" onclick = "closeModal(event)" >
+                    <div class="modal-content guide-modal" onclick="event.stopPropagation()">
+                        <div class="modal-header">
+                            <h3>📥 راهنمای دانلود</h3>
+                            <button class="modal-close" onclick="closeModal()">✕</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="guide-section">
+                                <h4>📱 بات تلگرام <span class="guide-badge telegram">Filmeh, CastroFilm</span></h4>
+                                <ul>
+                                    <li>روی لینک کلیک کنید</li>
+                                    <li>به بات تلگرام منتقل می‌شوید</li>
+                                    <li>دکمه Start را بزنید</li>
+                                    <li>✅ فایل در تلگرام دریافت کنید</li>
+                                </ul>
+                            </div>
+                            <div class="guide-section">
+                                <h4>🧲 لینک مگنت <span class="guide-badge torrent">1337x, YTS</span></h4>
+                                <ul>
+                                    <li>برنامه تورنت نصب کنید (uTorrent یا qBittorrent)</li>
+                                    <li>روی لینک مگنت کلیک کنید</li>
+                                    <li>در برنامه تورنت باز می‌شود</li>
+                                    <li>✅ دانلود شروع می‌شود</li>
+                                </ul>
+                            </div>
+                            <div class="guide-section players">
+                                <h4>📱 پخش‌کننده‌های پیشنهادی</h4>
+                                <p><strong>موبایل:</strong> MX Player, VLC</p>
+                                <p><strong>کامپیوتر:</strong> VLC, PotPlayer</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="guide-section">
-                        <h4>🧲 لینک مگنت <span class="guide-badge torrent">1337x, YTS</span></h4>
-                        <ul>
-                            <li>برنامه تورنت نصب کنید (uTorrent یا qBittorrent)</li>
-                            <li>روی لینک مگنت کلیک کنید</li>
-                            <li>در برنامه تورنت باز می‌شود</li>
-                            <li>✅ دانلود شروع می‌شود</li>
-                        </ul>
-                    </div>
-                    <div class="guide-section players">
-                        <h4>📱 پخش‌کننده‌های پیشنهادی</h4>
-                        <p><strong>موبایل:</strong> MX Player, VLC</p>
-                        <p><strong>کامپیوتر:</strong> VLC, PotPlayer</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+        </div >
+                `;
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 

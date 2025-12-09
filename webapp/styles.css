@@ -494,6 +494,29 @@ body::before {
     background-size: cover;
     background-position: center;
     position: relative;
+    transition: background-image 0.3s ease;
+}
+
+/* Loading spinner for posters */
+.poster-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 28px;
+    height: 28px;
+    border: 2px solid rgba(139, 92, 246, 0.2);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.movie-card-poster.loaded .poster-loader {
+    display: none;
+}
+
+.movie-card-poster.loaded {
+    animation: fadeIn 0.3s ease;
 }
 
 .movie-card-poster::after {
