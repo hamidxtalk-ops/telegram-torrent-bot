@@ -310,7 +310,7 @@ app.get('/api/anime', async (req, res) => {
     }
 });
 
-// Movie details with ALL download links
+// Movie details with ALL download links - Telegram channels FIRST
 app.get('/api/movie/:id', async (req, res) => {
     try {
         const movieId = req.params.id;
@@ -326,8 +326,12 @@ app.get('/api/movie/:id', async (req, res) => {
         const movieTitle = details.title;
         let allTorrents = [];
 
-        // Search ALL sources in parallel
-        const [ytsRes, x1337Res, tpbRes, tgxRes, limeRes, iranianRes] = await Promise.allSettled([
+        // Import Telegram scraper
+        const scraperTelegram = (await import('./services/scraperTelegramChannels.js')).default;
+
+        // Search ALL sources in parallel - Telegram channels FIRST
+        const [telegramRes, ytsRes, x1337Res, tpbRes, tgxRes, limeRes, iranianRes] = await Promise.allSettled([
+            scraperTelegram.searchWithLinks(movieTitle, 5),
             yts.searchMovies(movieTitle, 3),
             scraper1337x.searchWithMagnets(movieTitle, 5),
             scraperTPB.searchWithMagnets(movieTitle, 3),
@@ -336,7 +340,33 @@ app.get('/api/movie/:id', async (req, res) => {
             scraperIranian.searchWithLinks(movieTitle, 5)
         ]);
 
-        // YTS torrents
+        // 1. FIRST: Telegram channels (PRIORITY)
+        if (telegramRes.status === 'fulfilled' && telegramRes.value?.length > 0) {
+            for (const movie of telegramRes.value) {
+                if (movie.torrents) {
+                    allTorrents.push(...movie.torrents.map(t => ({
+                        ...t,
+                        type: 'telegram'
+                    })));
+                }
+            }
+            console.log(`📢 Telegram: ${telegramRes.value.length} results`);
+        }
+
+        // Add direct links to Filmeh bots (always available)
+        const imdbId = details.imdb_id;
+        if (imdbId) {
+            const botLinks = scraperTelegram.getTelegramBotLinks(imdbId);
+            allTorrents.push(...botLinks.map(link => ({
+                quality: 'دانلود از بات',
+                magnetLink: link.url,
+                source: link.source,
+                isTelegramBot: true,
+                type: 'telegram'
+            })));
+        }
+
+        // 2. YTS torrents
         if (ytsRes.status === 'fulfilled' && ytsRes.value?.[0]?.torrents) {
             allTorrents.push(...ytsRes.value[0].torrents.map(t => ({
                 ...t,
@@ -345,7 +375,7 @@ app.get('/api/movie/:id', async (req, res) => {
             })));
         }
 
-        // 1337x torrents
+        // 3. 1337x torrents
         if (x1337Res.status === 'fulfilled' && x1337Res.value?.length > 0) {
             const grouped = scraper1337x.groupByMovie(x1337Res.value);
             if (grouped[0]?.torrents) {
@@ -357,7 +387,7 @@ app.get('/api/movie/:id', async (req, res) => {
             }
         }
 
-        // TPB torrents
+        // 4. TPB torrents
         if (tpbRes.status === 'fulfilled' && tpbRes.value?.[0]?.torrents) {
             allTorrents.push(...tpbRes.value[0].torrents.slice(0, 3).map(t => ({
                 ...t,
@@ -366,7 +396,7 @@ app.get('/api/movie/:id', async (req, res) => {
             })));
         }
 
-        // TorrentGalaxy torrents
+        // 5. TorrentGalaxy torrents
         if (tgxRes.status === 'fulfilled' && tgxRes.value?.[0]?.torrents) {
             allTorrents.push(...tgxRes.value[0].torrents.slice(0, 3).map(t => ({
                 ...t,
@@ -375,7 +405,7 @@ app.get('/api/movie/:id', async (req, res) => {
             })));
         }
 
-        // LimeTorrents
+        // 6. LimeTorrents
         if (limeRes.status === 'fulfilled' && limeRes.value?.[0]?.torrents) {
             allTorrents.push(...limeRes.value[0].torrents.slice(0, 3).map(t => ({
                 ...t,
@@ -384,7 +414,7 @@ app.get('/api/movie/:id', async (req, res) => {
             })));
         }
 
-        // Iranian/Persian sources (direct links)
+        // 7. Iranian/Persian sources
         if (iranianRes.status === 'fulfilled' && iranianRes.value?.length > 0) {
             for (const movie of iranianRes.value) {
                 if (movie.torrents) {
@@ -681,7 +711,12 @@ async function main() {
 
     // ==================== TEXT MESSAGE HANDLER ====================
 
-    // Handle plain text messages as search queries
+    // Mini App URL
+    const WEBAPP_URL = process.env.RENDER_EXTERNAL_URL
+        ? `${process.env.RENDER_EXTERNAL_URL}/webapp/`
+        : 'https://telegram-torrent-bot-jqsd.onrender.com/webapp/';
+
+    // Redirect text messages to Mini App (no direct search)
     bot.on('message', async (msg) => {
         // Ignore commands
         if (msg.text?.startsWith('/')) return;
@@ -702,8 +737,22 @@ async function main() {
             return;
         }
 
-        // Treat as search query
-        await handleSearch(bot, msg, msg.text);
+        // Redirect to Mini App instead of search
+        await bot.sendMessage(msg.chat.id,
+            `🎬 *برای جستجو از Mini App استفاده کنید*\n\n` +
+            `روی دکمه زیر کلیک کنید و عبارت «${msg.text}» را جستجو کنید:`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [[
+                        {
+                            text: '🎬 ورود به فیلم‌یاب',
+                            web_app: { url: WEBAPP_URL }
+                        }
+                    ]]
+                }
+            }
+        );
     });
 
     // ==================== CALLBACK QUERY HANDLER ====================
@@ -740,39 +789,31 @@ async function main() {
                 return;
             }
 
-            // Navigation
+            // Navigation - Show Mini App button
             if (data === 'back_main') {
-                const lang = db.getLanguage(userId);
                 try {
-                    await bot.editMessageText(t(lang, 'welcome'), {
-                        chat_id: query.message.chat.id,
-                        message_id: query.message.message_id,
-                        parse_mode: 'Markdown',
-                        reply_markup: {
-                            inline_keyboard: [
-                                [
-                                    { text: '🔍 جستجوی فیلم', callback_data: 'prompt_search' },
-                                    { text: '📺 سریال', callback_data: 'tv_series' }
-                                ],
-                                [
-                                    { text: '🎌 انیمه', callback_data: 'anime' },
-                                    { text: '🔥 ترندینگ', callback_data: 'trending' }
-                                ],
-                                [
-                                    { text: '💫 پیشنهادی', callback_data: 'recommended' },
-                                    { text: '⭐ علاقه‌مندی‌ها', callback_data: 'favorites' }
-                                ],
-                                [
-                                    { text: '🎭 ژانرها', callback_data: 'browse' },
-                                    { text: '📜 تاریخچه', callback_data: 'history' }
-                                ],
-                                [
-                                    { text: '🌐 زبان / Language', callback_data: 'select_language' },
-                                    { text: '📞 پشتیبانی', url: 'https://t.me/Mound84' }
+                    await bot.editMessageText(
+                        `🎬 *به فیلم‌یاب خوش آمدید!*\n\nبرای جستجو و دانلود فیلم روی دکمه زیر کلیک کنید:`,
+                        {
+                            chat_id: query.message.chat.id,
+                            message_id: query.message.message_id,
+                            parse_mode: 'Markdown',
+                            reply_markup: {
+                                inline_keyboard: [
+                                    [
+                                        {
+                                            text: '🎬 ورود به فیلم‌یاب',
+                                            web_app: { url: WEBAPP_URL }
+                                        }
+                                    ],
+                                    [
+                                        { text: '🌐 زبان / Language', callback_data: 'select_language' },
+                                        { text: '📞 پشتیبانی', url: 'https://t.me/Mound84' }
+                                    ]
                                 ]
-                            ]
+                            }
                         }
-                    });
+                    );
                 } catch (e) { }
                 await bot.answerCallbackQuery(query.id);
                 return;

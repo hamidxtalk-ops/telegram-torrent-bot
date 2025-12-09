@@ -1,22 +1,34 @@
 /**
  * Telegram Channel Scraper Service
  * Scrapes public Telegram channels via t.me/s/ web pages
+ * Priority: User-requested channels first, then other sources
  */
 
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-// Telegram channels to scrape
+// Telegram channels to scrape - PRIORITY ORDER
 const CHANNELS = [
-    { name: 'Filmeh_Archive', displayName: 'Filmeh Archive' },
-    { name: 'WhenMoviez', displayName: 'When Moviez' },
-    { name: 'Filmeeh1', displayName: 'Filmeh | فیلمه' },
-    { name: 'Film_Bazzanz', displayName: 'Film Bazzan' },
-    { name: 'FilmpokVvip', displayName: 'Filmpok VIP' },
-    { name: 'Filmseven_asli7', displayName: 'Film7' },
-    { name: 'Mr_Film78', displayName: 'Mr Film' },
-    { name: 'Sitofilm', displayName: 'Sito Film' },
-    { name: 'CastroFilm4', displayName: 'Castro Film' }
+    // کانال‌های درخواستی کاربر - اولویت اول
+    { name: 'Filmeeh1', displayName: 'فیلمه 1', priority: 1 },
+    { name: 'Filmeh_Archive', displayName: 'آرشیو فیلمه', priority: 1 },
+    { name: 'Filmeeh_GP', displayName: 'فیلمه GP', priority: 1 },
+
+    // سایر کانال‌های موجود
+    { name: 'WhenMoviez', displayName: 'When Moviez', priority: 2 },
+    { name: 'Film_Bazzanz', displayName: 'Film Bazzan', priority: 2 },
+    { name: 'FilmpokVvip', displayName: 'Filmpok VIP', priority: 2 },
+    { name: 'Filmseven_asli7', displayName: 'Film7', priority: 2 },
+    { name: 'Mr_Film78', displayName: 'Mr Film', priority: 2 },
+    { name: 'Sitofilm', displayName: 'Sito Film', priority: 2 },
+    { name: 'CastroFilm4', displayName: 'Castro Film', priority: 2 }
+];
+
+// لینک‌های بات‌های تلگرام (برای نمایش به کاربر)
+const TELEGRAM_BOTS = [
+    { username: 'ArchiveFilmehbot', displayName: 'بات آرشیو فیلمه', url: 'https://t.me/ArchiveFilmehbot' },
+    { username: 'FilmehArchive_bot', displayName: 'بات فیلمه آرشیو', url: 'https://t.me/FilmehArchive_bot' },
+    { username: 'Archive_Filmehbot', displayName: 'بات آرشیو', url: 'https://t.me/Archive_Filmehbot' }
 ];
 
 const client = axios.create({
@@ -52,12 +64,27 @@ async function searchChannel(channelName, query) {
             // Get message link
             const messageLink = $msg.find('.tgme_widget_message_date').attr('href');
 
-            // Get bot download links
+            // Get bot download links - extended patterns for multiple bots
             const botLinks = [];
-            $msg.find('a[href*="filmehbot?start="], a[href*="FilmehBot?start="]').each((j, link) => {
-                const href = $(link).attr('href');
+            const botPatterns = [
+                'filmehbot?start=',
+                'FilmehBot?start=',
+                'ArchiveFilmehbot?start=',
+                'FilmehArchive_bot?start=',
+                'Archive_Filmehbot?start=',
+                'start=tt'  // Generic IMDB pattern
+            ];
+
+            $msg.find('a').each((j, link) => {
+                const href = $(link).attr('href') || '';
                 const text = $(link).text().trim();
-                if (href) {
+
+                // Check if it's a download bot link
+                const isDownloadLink = botPatterns.some(pattern =>
+                    href.toLowerCase().includes(pattern.toLowerCase())
+                ) || href.includes('t.me/') && href.includes('start=');
+
+                if (isDownloadLink) {
                     botLinks.push({
                         url: href,
                         label: text || 'دانلود فایل'
@@ -127,7 +154,7 @@ async function searchChannel(channelName, query) {
 /**
  * Search all Telegram channels
  */
-export async function searchTelegramChannels(query, limit = 10) {
+export async function searchTelegramChannels(query, limit = 15) {
     console.log(`📢 Searching Telegram channels for: ${query}`);
 
     // Search all channels in parallel
@@ -137,17 +164,21 @@ export async function searchTelegramChannels(query, limit = 10) {
 
     const results = [];
 
-    // Collect successful results
+    // Collect successful results with priority ordering
     for (let i = 0; i < channelResults.length; i++) {
         if (channelResults[i].status === 'fulfilled') {
             const channelMovies = channelResults[i].value;
-            // Add display name to each result
+            // Add display name and priority to each result
             channelMovies.forEach(movie => {
                 movie.sourceDisplay = CHANNELS[i].displayName;
+                movie.priority = CHANNELS[i].priority;
             });
             results.push(...channelMovies);
         }
     }
+
+    // Sort by priority (lower number = higher priority)
+    results.sort((a, b) => (a.priority || 2) - (b.priority || 2));
 
     console.log(`✅ Total Telegram results: ${results.length}`);
     return results.slice(0, limit);
@@ -156,7 +187,7 @@ export async function searchTelegramChannels(query, limit = 10) {
 /**
  * Search with download links (formatted for bot)
  */
-export async function searchWithLinks(query, limit = 5) {
+export async function searchWithLinks(query, limit = 10) {
     const movies = await searchTelegramChannels(query, limit);
 
     // Format results to match expected structure
@@ -190,9 +221,25 @@ export function getFilmehBotLink(imdbId) {
     return `https://t.me/filmehbot?start=tt${id}`;
 }
 
+/**
+ * Get links to all related Telegram bots
+ */
+export function getTelegramBotLinks(imdbId) {
+    if (!imdbId) return [];
+    const id = imdbId.replace('tt', '');
+
+    return TELEGRAM_BOTS.map(bot => ({
+        source: bot.displayName,
+        url: `https://t.me/${bot.username}?start=tt${id}`,
+        isTelegramBot: true
+    }));
+}
+
 export default {
     searchTelegramChannels,
     searchWithLinks,
     getFilmehBotLink,
-    CHANNELS
+    getTelegramBotLinks,
+    CHANNELS,
+    TELEGRAM_BOTS
 };

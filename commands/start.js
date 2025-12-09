@@ -1,10 +1,15 @@
 /**
  * /start Command
- * Welcome message and terms acceptance
+ * Welcome message and terms acceptance - Mini App Only Mode
  */
 
 import db from '../database/sqlite.js';
 import { t, getLanguageKeyboard } from '../utils/languages.js';
+
+// Get Mini App URL from environment
+const WEBAPP_URL = process.env.RENDER_EXTERNAL_URL
+    ? `${process.env.RENDER_EXTERNAL_URL}/webapp/`
+    : 'https://telegram-torrent-bot-jqsd.onrender.com/webapp/';
 
 /**
  * Handle /start command
@@ -14,7 +19,7 @@ import { t, getLanguageKeyboard } from '../utils/languages.js';
 export async function handleStart(bot, msg) {
     const chatId = msg.chat.id;
     const user = db.getOrCreateUser(msg.from);
-    const lang = user.language_code || 'en';
+    const lang = user.language_code || 'fa';
 
     // Check if user has accepted terms
     if (!db.hasAcceptedTerms(msg.from.id)) {
@@ -32,34 +37,31 @@ export async function handleStart(bot, msg) {
         return;
     }
 
-    // User has accepted terms, show welcome
-    await bot.sendMessage(chatId, t(lang, 'welcome'), {
-        parse_mode: 'Markdown',
-        reply_markup: {
-            inline_keyboard: [
-                [
-                    { text: '🔍 جستجوی فیلم', callback_data: 'prompt_search' },
-                    { text: '📺 سریال', callback_data: 'tv_series' }
-                ],
-                [
-                    { text: '🎌 انیمه', callback_data: 'anime' },
-                    { text: '🔥 ترندینگ', callback_data: 'trending' }
-                ],
-                [
-                    { text: '💫 پیشنهادی', callback_data: 'recommended' },
-                    { text: '⭐ علاقه‌مندی‌ها', callback_data: 'favorites' }
-                ],
-                [
-                    { text: '🎭 ژانرها', callback_data: 'browse' },
-                    { text: '📜 تاریخچه', callback_data: 'history' }
-                ],
-                [
-                    { text: '🌐 زبان / Language', callback_data: 'select_language' },
-                    { text: '📞 پشتیبانی', url: 'https://t.me/Mound84' }
+    // User has accepted terms, show Mini App button
+    await bot.sendMessage(chatId,
+        `🎬 *به فیلم‌یاب خوش آمدید!*\n\n` +
+        `برای جستجو و دانلود فیلم روی دکمه زیر کلیک کنید:\n\n` +
+        `✨ جستجوی هوشمند از کانال‌های تلگرام\n` +
+        `📥 دانلود مستقیم از تلگرام\n` +
+        `🧲 لینک‌های تورنت`,
+        {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: '🎬 ورود به فیلم‌یاب',
+                            web_app: { url: WEBAPP_URL }
+                        }
+                    ],
+                    [
+                        { text: '🌐 زبان / Language', callback_data: 'select_language' },
+                        { text: '📞 پشتیبانی', url: 'https://t.me/Mound84' }
+                    ]
                 ]
-            ]
+            }
         }
-    });
+    );
 }
 
 /**
@@ -70,7 +72,7 @@ export async function handleStart(bot, msg) {
 export async function handleAcceptTerms(bot, query) {
     const chatId = query.message.chat.id;
     const userId = query.from.id;
-    const lang = db.getLanguage(userId);
+    const lang = db.getLanguage(userId) || 'fa';
 
     // Mark terms as accepted
     db.acceptTerms(userId);
@@ -88,34 +90,31 @@ export async function handleAcceptTerms(bot, query) {
         // Message might already be deleted
     }
 
-    // Send welcome message
-    await bot.sendMessage(chatId, t(lang, 'welcome'), {
-        parse_mode: 'Markdown',
-        reply_markup: {
-            inline_keyboard: [
-                [
-                    { text: '🔍 جستجوی فیلم', callback_data: 'prompt_search' },
-                    { text: '� سریال', callback_data: 'tv_series' }
-                ],
-                [
-                    { text: '🎌 انیمه', callback_data: 'anime' },
-                    { text: '🔥 ترندینگ', callback_data: 'trending' }
-                ],
-                [
-                    { text: '💫 پیشنهادی', callback_data: 'recommended' },
-                    { text: '⭐ علاقه‌مندی‌ها', callback_data: 'favorites' }
-                ],
-                [
-                    { text: '🎭 ژانرها', callback_data: 'browse' },
-                    { text: '📜 تاریخچه', callback_data: 'history' }
-                ],
-                [
-                    { text: '🌐 زبان / Language', callback_data: 'select_language' },
-                    { text: '📞 پشتیبانی', url: 'https://t.me/Mound84' }
+    // Send Mini App welcome message
+    await bot.sendMessage(chatId,
+        `🎬 *به فیلم‌یاب خوش آمدید!*\n\n` +
+        `برای جستجو و دانلود فیلم روی دکمه زیر کلیک کنید:\n\n` +
+        `✨ جستجوی هوشمند از کانال‌های تلگرام\n` +
+        `📥 دانلود مستقیم از تلگرام\n` +
+        `🧲 لینک‌های تورنت`,
+        {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: '🎬 ورود به فیلم‌یاب',
+                            web_app: { url: WEBAPP_URL }
+                        }
+                    ],
+                    [
+                        { text: '🌐 زبان / Language', callback_data: 'select_language' },
+                        { text: '📞 پشتیبانی', url: 'https://t.me/Mound84' }
+                    ]
                 ]
-            ]
+            }
         }
-    });
+    );
 }
 
 /**
@@ -161,25 +160,20 @@ export async function handleLanguageChange(bot, query, langCode) {
         await bot.deleteMessage(chatId, query.message.message_id);
     } catch (e) { }
 
-    await bot.sendMessage(chatId, t(langCode, 'welcome'), {
+    // Send Mini App welcome message
+    const welcomeText = langCode === 'fa'
+        ? `🎬 *به فیلم‌یاب خوش آمدید!*\n\nبرای جستجو و دانلود فیلم روی دکمه زیر کلیک کنید:`
+        : `🎬 *Welcome to Movie Finder!*\n\nClick the button below to search and download movies:`;
+
+    await bot.sendMessage(chatId, welcomeText, {
         parse_mode: 'Markdown',
         reply_markup: {
             inline_keyboard: [
                 [
-                    { text: '🔍 جستجوی فیلم', callback_data: 'prompt_search' },
-                    { text: '� سریال', callback_data: 'tv_series' }
-                ],
-                [
-                    { text: '🎌 انیمه', callback_data: 'anime' },
-                    { text: '🔥 ترندینگ', callback_data: 'trending' }
-                ],
-                [
-                    { text: '💫 پیشنهادی', callback_data: 'recommended' },
-                    { text: '⭐ علاقه‌مندی‌ها', callback_data: 'favorites' }
-                ],
-                [
-                    { text: '🎭 ژانرها', callback_data: 'browse' },
-                    { text: '📜 تاریخچه', callback_data: 'history' }
+                    {
+                        text: langCode === 'fa' ? '🎬 ورود به فیلم‌یاب' : '🎬 Open Movie Finder',
+                        web_app: { url: WEBAPP_URL }
+                    }
                 ],
                 [
                     { text: '🌐 زبان / Language', callback_data: 'select_language' },
