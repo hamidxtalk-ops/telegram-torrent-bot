@@ -24,12 +24,9 @@ const CHANNELS = [
     { name: 'CastroFilm4', displayName: 'Castro Film', priority: 2 }
 ];
 
-// لینک‌های بات‌های تلگرام (برای نمایش به کاربر)
-const TELEGRAM_BOTS = [
-    { username: 'ArchiveFilmehbot', displayName: 'بات آرشیو فیلمه', url: 'https://t.me/ArchiveFilmehbot' },
-    { username: 'FilmehArchive_bot', displayName: 'بات فیلمه آرشیو', url: 'https://t.me/FilmehArchive_bot' },
-    { username: 'Archive_Filmehbot', displayName: 'بات آرشیو', url: 'https://t.me/Archive_Filmehbot' }
-];
+// بات‌های تلگرام - غیرفعال (این بات‌ها توسط تلگرام مسدود شده‌اند)
+// const TELEGRAM_BOTS = [];
+const TELEGRAM_BOTS = []; // Bots are banned by Telegram for copyright
 
 const client = axios.create({
     timeout: 15000,
@@ -64,27 +61,32 @@ async function searchChannel(channelName, query) {
             // Get message link
             const messageLink = $msg.find('.tgme_widget_message_date').attr('href');
 
-            // Get bot download links - extended patterns for multiple bots
+            // Get bot download links - ONLY channel message links (bots are banned)
             const botLinks = [];
-            const botPatterns = [
-                'filmehbot?start=',
-                'FilmehBot?start=',
-                'ArchiveFilmehbot?start=',
-                'FilmehArchive_bot?start=',
-                'Archive_Filmehbot?start=',
-                'start=tt'  // Generic IMDB pattern
+
+            // Skip banned bot patterns and only get direct message links
+            const bannedPatterns = [
+                'filmehbot', 'archivefilmehbot', 'filmeharchive_bot', 'archive_filmehbot',
+                'start=tt', 'start=' // Skip all bot start links
             ];
 
             $msg.find('a').each((j, link) => {
                 const href = $(link).attr('href') || '';
                 const text = $(link).text().trim();
+                const hrefLower = href.toLowerCase();
 
-                // Check if it's a download bot link
-                const isDownloadLink = botPatterns.some(pattern =>
-                    href.toLowerCase().includes(pattern.toLowerCase())
-                ) || href.includes('t.me/') && href.includes('start=');
+                // Skip banned bot links
+                const isBanned = bannedPatterns.some(pattern => hrefLower.includes(pattern));
+                if (isBanned) return;
 
-                if (isDownloadLink) {
+                // Only include direct Telegram channel/message links (not bot links)
+                const isChannelLink = href.includes('t.me/') && !href.includes('?start=');
+
+                // Check if it's a download-related text
+                const downloadKeywords = ['دانلود', 'download', '480p', '720p', '1080p', '2160p', 'x265', 'x264', 'bluray', 'webrip'];
+                const hasDownloadKeyword = downloadKeywords.some(kw => text.toLowerCase().includes(kw) || href.toLowerCase().includes(kw));
+
+                if (isChannelLink && hasDownloadKeyword) {
                     botLinks.push({
                         url: href,
                         label: text || 'دانلود فایل'
@@ -212,27 +214,19 @@ export async function searchWithLinks(query, limit = 10) {
 }
 
 /**
- * Get direct link to FilmehBot for a movie
+ * Get direct link to FilmehBot for a movie - DISABLED (bots are banned)
  */
 export function getFilmehBotLink(imdbId) {
-    if (!imdbId) return null;
-    // Remove 'tt' prefix if present
-    const id = imdbId.replace('tt', '');
-    return `https://t.me/filmehbot?start=tt${id}`;
+    // Bot is banned by Telegram for copyright infringement
+    return null;
 }
 
 /**
- * Get links to all related Telegram bots
+ * Get links to all related Telegram bots - DISABLED (bots are banned)
  */
 export function getTelegramBotLinks(imdbId) {
-    if (!imdbId) return [];
-    const id = imdbId.replace('tt', '');
-
-    return TELEGRAM_BOTS.map(bot => ({
-        source: bot.displayName,
-        url: `https://t.me/${bot.username}?start=tt${id}`,
-        isTelegramBot: true
-    }));
+    // Bots are banned by Telegram for copyright infringement
+    return [];
 }
 
 export default {
