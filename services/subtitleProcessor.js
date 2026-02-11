@@ -53,7 +53,8 @@ export async function processSubtitleToFlashcards(filePath, movieTitle) {
         // Or we just implement it here using the key from aiLearning (or process.env).
 
         const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-        const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const GEMINI_MODEL = 'gemini-2.0-flash';
+        const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
         const prompt = `
         Analyze the following movie transcript from "${movieTitle}".

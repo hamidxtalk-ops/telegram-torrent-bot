@@ -5,15 +5,17 @@
 
 import axios from 'axios';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-const GEMINI_MODEL = 'gemini-1.5-flash';
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+// Dynamic getter to avoid hoisting issues
+const getApiKey = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+const GEMINI_MODEL = 'gemini-2.0-flash';
+const getEndpoint = () => `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${getApiKey()}`;
 
 /**
  * Explains a piece of movie dialogue in a language learning context
  */
 export async function explainDialogue(text, movieTitle = 'Unknown Movie', persona = 'Teacher') {
-    if (!GEMINI_API_KEY) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
         console.error('❌ GEMINI_API_KEY not found in environment variables');
         return { error: 'API key not configured' };
     }
@@ -53,7 +55,7 @@ export async function explainDialogue(text, movieTitle = 'Unknown Movie', person
         }
         `;
 
-        const response = await axios.post(GEMINI_ENDPOINT, {
+        const response = await axios.post(getEndpoint(), {
             contents: [{
                 parts: [{ text: prompt }]
             }]
@@ -77,7 +79,7 @@ export async function explainDialogue(text, movieTitle = 'Unknown Movie', person
  * Generates a comprehensive categorized learning plan for a movie
  */
 export async function getComprehensiveLearningData(movieTitle) {
-    if (!GEMINI_API_KEY) return { error: 'API Key Missing' };
+    if (!getApiKey()) return { error: 'API Key Missing' };
 
     try {
         const prompt = `
@@ -124,7 +126,7 @@ export async function getComprehensiveLearningData(movieTitle) {
         Respond ONLY with JSON. No Markdown.
         `;
 
-        const response = await axios.post(GEMINI_ENDPOINT, {
+        const response = await axios.post(getEndpoint(), {
             contents: [{ parts: [{ text: prompt }] }]
         });
 
@@ -154,7 +156,9 @@ export async function getLearningMoments(movieTitle) {
  * Detects movie from media (image, audio, or video)
  */
 export async function recognizeMedia(fileBuffer, mimeType) {
-    if (!GEMINI_API_KEY) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        console.error('❌ recognizeMedia: GEMINI_API_KEY is missing!');
         return { error: 'API key not configured' };
     }
 
@@ -204,7 +208,7 @@ export async function recognizeMedia(fileBuffer, mimeType) {
         RETURN ONLY RAW JSON. NO MARKDOWN.
         `;
 
-        const response = await axios.post(GEMINI_ENDPOINT, {
+        const response = await axios.post(getEndpoint(), {
             contents: [{
                 parts: [
                     { text: prompt },
@@ -220,6 +224,8 @@ export async function recognizeMedia(fileBuffer, mimeType) {
 
         const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
+        console.log('🤖 Raw AI Response:', text); // DEBUG LOG
+
         if (!text) throw new Error('Empty AI response');
 
         const cleanJson = text.replace(/```json|```/g, '').trim();
@@ -227,7 +233,7 @@ export async function recognizeMedia(fileBuffer, mimeType) {
 
     } catch (error) {
         console.error('Media Recognition Error:', error.response?.data || error.message);
-        return { error: 'Failed to recognize media', found: false };
+        return { error: 'Failed to recognize media', found: false, rawError: error.message };
     }
 }
 
@@ -235,7 +241,7 @@ export async function recognizeMedia(fileBuffer, mimeType) {
  * Searches for a movie based on a semantic description (OpenClaw style)
  */
 export async function searchByContext(query) {
-    if (!GEMINI_API_KEY) return { found: false };
+    if (!getApiKey()) return { found: false };
 
     try {
         const prompt = `
@@ -257,7 +263,7 @@ export async function searchByContext(query) {
         If unsure, set found: false.
         `;
 
-        const response = await axios.post(GEMINI_ENDPOINT, {
+        const response = await axios.post(getEndpoint(), {
             contents: [{ parts: [{ text: prompt }] }]
         });
 
@@ -274,7 +280,7 @@ export async function searchByContext(query) {
  * Analyzes audio pronunciation (Standard or Shadowing)
  */
 export async function analyzePronunciation(audioBuffer, targetText, mimeType = 'audio/ogg', mode = 'standard') {
-    if (!GEMINI_API_KEY) return { error: 'API key missing' };
+    if (!getApiKey()) return { error: 'API key missing' };
 
     try {
         const base64Audio = audioBuffer.toString('base64');
@@ -315,7 +321,7 @@ export async function analyzePronunciation(audioBuffer, targetText, mimeType = '
             `;
         }
 
-        const response = await axios.post(GEMINI_ENDPOINT, {
+        const response = await axios.post(getEndpoint(), {
             contents: [{
                 parts: [
                     { text: prompt },
@@ -342,7 +348,7 @@ export async function analyzePronunciation(audioBuffer, targetText, mimeType = '
  * Chat with a specific persona (Roleplay)
  */
 export async function chatWithPersona(persona, userInput, history) {
-    if (!GEMINI_API_KEY) return '❌ AI API key missing.';
+    if (!getApiKey()) return '❌ AI API key missing.';
 
     try {
         // Construct prompt with history
@@ -372,7 +378,7 @@ export async function chatWithPersona(persona, userInput, history) {
         Response:
         `;
 
-        const response = await axios.post(GEMINI_ENDPOINT, {
+        const response = await axios.post(getEndpoint(), {
             contents: [{ parts: [{ text: prompt }] }]
         });
 
@@ -388,7 +394,7 @@ export async function chatWithPersona(persona, userInput, history) {
  * Universal Image Analysis for Phase 4
  */
 export async function analyzeImage(fileBuffer, mode) {
-    if (!GEMINI_API_KEY) return '❌ API Key Missing';
+    if (!getApiKey()) return '❌ API Key Missing';
 
     try {
         const base64Data = fileBuffer.toString('base64');
@@ -460,7 +466,7 @@ export async function analyzeImage(fileBuffer, mode) {
                 prompt = 'Analyze this image and describe it.';
         }
 
-        const response = await axios.post(GEMINI_ENDPOINT, {
+        const response = await axios.post(getEndpoint(), {
             contents: [{
                 parts: [
                     { text: prompt },

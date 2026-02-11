@@ -1382,7 +1382,8 @@ function initSearchModal() {
 
 async function loadLearningData() {
     state.isLoading = true;
-    updateLoading(true);
+    // updateLoading(true); // Replaced with log to avoid ReferenceError
+    console.log('🔄 Loading learning data...');
 
     try {
         const userId = tg?.initDataUnsafe?.user?.id || 123456; // Fallback for dev
@@ -1478,21 +1479,33 @@ function openMediaRecognition() {
 
 // Handle Camera/File Selection
 document.getElementById('camera-input').addEventListener('change', async function (e) {
+    console.log('📸 Camera input triggered');
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+        console.log('❌ No file selected');
+        return;
+    }
+
+    console.log(`📁 File selected: ${file.name} (${file.type}, ${file.size} bytes)`);
 
     // Show loading state
-    showLoadingScreen('🤖 در حال تماشای تصویر...');
+    if (typeof showLoadingScreen === 'function') {
+        showLoadingScreen('🤖 در حال تماشای تصویر...');
+    } else {
+        console.warn('⚠️ showLoadingScreen is not defined');
+    }
 
     try {
         const reader = new FileReader();
         reader.readAsDataURL(file);
 
         reader.onloadend = async function () {
+            console.log('📖 File read into memory. Preparing to send...');
             const base64Data = reader.result.split(',')[1];
             const mimeType = file.type;
 
             try {
+                console.log('🚀 Sending POST request to /api/recognize...');
                 const response = await apiRequest('/api/recognize', {
                     method: 'POST',
                     body: JSON.stringify({
@@ -1500,6 +1513,9 @@ document.getElementById('camera-input').addEventListener('change', async functio
                         mimeType: mimeType
                     })
                 });
+
+                console.log('✅ Server Response:', JSON.stringify(response, null, 2));
+
 
                 if (response && response.found) {
                     showToast(`✅ فیلم شناسایی شد: ${response.title}`);

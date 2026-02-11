@@ -5,62 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#1a1a2e">
     <meta name="color-scheme" content="dark light">
-    
-    <title>🎬 فیلم‌یاب | Movie Finder</title>
-    
-    <!-- Telegram WebApp SDK -->
+    <title>فیلم‌یاب | Movie Finder</title>
     <script src="https://telegram.org/js/telegram-web-app.js?v=7.10"></script>
-    
-    <!-- WebTorrent for in-browser torrent downloads - with fallbacks -->
-    <script>
-        function loadWebTorrentFallback() {
-            var s = document.createElement('script');
-            s.src = 'https://unpkg.com/webtorrent@2.0.15/webtorrent.min.js';
-            s.onerror = function() {
-                console.log('WebTorrent not available - using fallback mode');
-            };
-            document.head.appendChild(s);
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/webtorrent@2.0.15/webtorrent.min.js" 
-            onerror="loadWebTorrentFallback()"></script>
-    
-    <!-- Persian Font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@2.0.15/webtorrent.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Styles -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Loading Screen -->
     <div id="loading-screen" class="loading-screen">
         <div class="loading-content">
             <div class="loading-spinner"></div>
             <p>در حال بارگذاری...</p>
         </div>
     </div>
-
-    <!-- Hidden Camera Input -->
     <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;">
-
-    <!-- App Container -->
     <div id="app" class="app-container hidden">
-        <!-- Header -->
         <header class="app-header">
-            <button id="global-back-btn" class="global-back-btn hidden" onclick="goBack()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="m9 18 6-6-6-6"></path>
-                </svg>
-            </button>
+            <button id="global-back-btn" class="global-back-btn hidden" onclick="goBack()">🔙</button>
             <div class="header-right">
-                <button id="ai-vision-btn" class="header-icon-btn" onclick="openMediaRecognition()">
-                    <span class="btn-icon">👁️</span>
-                </button>
-                <a href="https://t.me/Mound84" target="_blank" class="support-btn">
-                    <span class="support-icon">📞</span>
-                </a>
+                <button id="ai-vision-btn" class="header-icon-btn" onclick="openMediaRecognition()">👁️</button>
+                <a href="https://t.me/Mound84" target="_blank" class="support-btn">📞</a>
             </div>
             <div class="logo">
                 <span class="logo-icon">🎬</span>
@@ -68,377 +32,108 @@
             </div>
         </header>
 
-        <!-- Search Section -->
         <section class="search-section">
             <div class="search-box">
-                <input 
-                    type="text" 
-                    id="search-input" 
-                    class="search-input" 
-                    placeholder="جستجوی فیلم یا سریال..."
-                    autocomplete="off"
-                >
-                <div class="search-actions">
-                    <button id="search-btn" class="search-btn">
-                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="m21 21-4.35-4.35"></path>
-                        </svg>
-                    </button>
-                </div>
+                <input type="text" id="search-input" class="search-input" placeholder="جستجوی فیلم..." autocomplete="off">
+                <button id="search-btn" class="search-btn">🔍</button>
             </div>
         </section>
 
-        <!-- Advanced Search Modal -->
-        <div id="advanced-search-modal" class="modal-overlay hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>🔍 جستجوی پیشرفته</h3>
-                    <button id="close-advanced-modal" class="modal-close">×</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="adv-movie-title">نام فیلم یا سریال:</label>
-                        <input type="text" id="adv-movie-title" class="form-input" placeholder="مثلاً: Interstellar">
-                    </div>
-                    <div class="form-group">
-                        <label for="adv-movie-year">سال ساخت:</label>
-                        <input type="number" id="adv-movie-year" class="form-input" placeholder="مثلاً: 2014" min="1900" max="2100">
-                    </div>
-                    <button id="perform-advanced-search" class="primary-btn">شروع جستجو</button>
-                </div>
-            </div>
-        </div>
-
-        </section>
-        <!-- Main Content -->
         <main class="main-content">
-            <!-- Home View -->
             <div id="home-view" class="view active">
-                <!-- Quick Access Buttons -->
                 <div class="quick-access">
-                    <button class="quick-btn" data-action="trending">
-                        <span class="quick-icon">🔥</span>
-                        <span>ترندینگ</span>
-                    </button>
-                    <button class="quick-btn" data-action="tv">
-                        <span class="quick-icon">📺</span>
-                        <span>سریال</span>
-                    </button>
-                    <button class="quick-btn" data-action="anime">
-                        <span class="quick-icon">🎌</span>
-                        <span>انیمه</span>
-                    </button>
-                    <button class="quick-btn" data-action="genres">
-                        <span class="quick-icon">🎭</span>
-                        <span>ژانرها</span>
-                    </button>
+                    <button class="quick-btn" data-action="trending">🔥 ترندینگ</button>
+                    <button class="quick-btn" data-action="tv">📺 سریال</button>
+                    <button class="quick-btn" data-action="anime">🎌 انیمه</button>
+                    <button class="quick-btn" data-action="genres">🎭 ژانرها</button>
                 </div>
-
-                <div class="section-header">
-                    <h2>🔥 پرطرفدار</h2>
-                </div>
-                <div id="trending-movies" class="movies-grid">
-                    <!-- Populated by JS -->
-                </div>
+                <div id="trending-movies" class="movies-grid"></div>
             </div>
 
-            <!-- Genres View -->
             <div id="genres-view" class="view">
                 <div class="section-header">
-                    <button id="genres-back-btn" class="back-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="m9 18 6-6-6-6"></path>
-                        </svg>
-                    </button>
+                    <button id="genres-back-btn" class="back-btn">🔙</button>
                     <h2>🎭 انتخاب ژانر</h2>
                 </div>
-                <div id="genres-list" class="genres-grid">
-                    <!-- Populated by JS -->
-                </div>
+                <div id="genres-list" class="genres-grid"></div>
             </div>
 
-            <!-- Search Results View -->
             <div id="results-view" class="view">
                 <div class="section-header">
-                    <button id="back-btn" class="back-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="m9 18 6-6-6-6"></path>
-                        </svg>
-                    </button>
-                    <h2 id="results-title">نتایج جستجو</h2>
+                    <button id="back-btn" class="back-btn">🔙</button>
+                    <h2 id="results-title">نتایج</h2>
                 </div>
-                <div id="search-results" class="movies-grid">
-                    <!-- Populated by JS -->
-                </div>
+                <div id="search-results" class="movies-grid"></div>
             </div>
 
-            <!-- Movie Detail View -->
             <div id="movie-view" class="view">
                 <div class="movie-detail">
-                    <button id="movie-back-btn" class="back-btn floating">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="m9 18 6-6-6-6"></path>
-                        </svg>
-                    </button>
+                    <button id="movie-back-btn" class="back-btn floating">🔙</button>
                     <div id="movie-poster" class="movie-poster"></div>
                     <div class="movie-info">
-                        <h1 id="movie-title" class="movie-title"></h1>
+                        <h1 id="movie-title"></h1>
                         <div class="movie-meta">
-                            <span id="movie-year" class="meta-item"></span>
-                            <span id="movie-rating" class="meta-item rating"></span>
-                            <span id="movie-runtime" class="meta-item"></span>
+                            <span id="movie-year"></span>
+                            <span id="movie-rating"></span>
                         </div>
-                        <p id="movie-synopsis" class="movie-synopsis"></p>
-                        <div id="movie-genres" class="movie-genres"></div>
+                        <p id="movie-synopsis"></p>
                     </div>
-
-                    <!-- AI Learning Section -->
+                    <!-- AI Learning -->
                     <div class="learning-section premium">
                         <div class="section-header">
-                            <h3>🎓 مرکز یادگیری اختصاصی این فیلم</h3>
-                            <button class="refresh-ai-btn" id="refresh-movie-ai">
-                                <span>بروزرسانی هوشمند</span> ✨
-                            </button>
+                            <h3>🎓 یادگیری هوشمند</h3>
+                            <button id="refresh-movie-ai">✨</button>
                         </div>
-                        <div id="movie-learning-content" class="learning-tabs-container">
-                            <!-- Populated with categorized sections by JS -->
-                            <div class="loading-spinner"></div>
-                        </div>
+                        <div id="movie-learning-content"></div>
                     </div>
-
+                    <!-- Downloads -->
                     <div class="downloads-section">
-                        <h3>📥 لینک‌های دانلود</h3>
-                        <div id="download-links" class="download-links">
-                            <!-- Populated by JS -->
-                        </div>
+                        <h3>📥 دانلود</h3>
+                        <div id="download-links"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Downloads View -->
             <div id="downloads-view" class="view">
-                <div class="section-header">
-
-                    <h2>📥 دانلود منیجر</h2>
-                </div>
-                
+                <h2>📥 دانلود منیجر</h2>
                 <div class="downloads-manager">
-                    <!-- Paste Magnet Link -->
-                    <div class="dm-section dm-paste-section">
-                        <h3>🧲 دانلود با لینک مگنت</h3>
-                        <div class="paste-magnet-box">
-                            <input type="text" 
-                                   id="magnet-input" 
-                                   class="magnet-input" 
-                                   placeholder="لینک مگنت را اینجا paste کنید..."
-                                   dir="ltr">
-                            <button id="start-magnet-btn" class="start-magnet-btn" onclick="startMagnetDownload()">
-                                دانلود
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Active Downloads -->
-
-
-                    <!-- Completed Downloads -->
-
-
-                    <!-- Instructions -->
-                    <div class="dm-instructions">
-                        <h4>📌 راهنما</h4>
-                        <p><strong>🧲 تورنت:</strong> لینک مگنت رو کپی کن و بالا paste کن</p>
-                        <p><strong>🌐 آنلاین:</strong> از Webtor.io برای دانلود مستقیم استفاده میشه</p>
-                    </div>
+                    <input type="text" id="magnet-input" placeholder="لینک مگنت..." dir="ltr">
+                    <button onclick="startMagnetDownload()">دانلود</button>
                 </div>
             </div>
 
-            <!-- Help View -->
             <div id="help-view" class="view">
                 <div class="section-header">
-                    <button id="help-back-btn" class="back-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="m9 18 6-6-6-6"></path>
-                        </svg>
-                    </button>
+                    <button id="help-back-btn" class="back-btn">🔙</button>
                     <h2>📖 راهنما</h2>
                 </div>
-                
-                <div class="help-content">
+                <!-- Help content -->
+                 <div class="help-content">
                     <div class="help-section">
                         <h3>🔍 نحوه جستجو</h3>
-                        <p>نام فیلم یا سریال رو به انگلیسی یا فارسی بنویسید. ما همزمان از ۱۱ منبع مختلف جستجو می‌کنیم.</p>
-                    </div>
-
-                    <div class="help-section">
-                        <h3>📥 انواع لینک دانلود</h3>
-                        
-                        <div class="help-card">
-                            <div class="help-card-header">
-                                <span class="source-badge intl">Torrent</span>
-                                <span>YTS, 1337x, TPB</span>
-                            </div>
-                            <p>لینک مگنت - باید با برنامه تورنت (مثل uTorrent یا qBittorrent) دانلود کنید.</p>
-                        </div>
-
-                        <div class="help-card">
-                            <div class="help-card-header">
-                                <span class="source-badge telegram">Telegram</span>
-                                <span>Filmeh, CastroFilm</span>
-                            </div>
-                            <p>لینک بات تلگرام - کلیک کنید تا به بات @FilmehBot بروید و فایل رو دریافت کنید.</p>
-                        </div>
-                    </div>
-
-                    <div class="help-section">
-                        <h3>🎬 کیفیت‌ها</h3>
-                        <ul class="quality-list">
-                            <li><strong>480p</strong> - کیفیت پایین، حجم کم (~500MB)</li>
-                            <li><strong>720p</strong> - کیفیت متوسط (~1GB)</li>
-                            <li><strong>1080p</strong> - کیفیت بالا (~2-3GB)</li>
-                            <li><strong>2160p/4K</strong> - بهترین کیفیت (~10-20GB)</li>
-                        </ul>
-                    </div>
-
-                    <div class="help-section">
-                        <h3>🔊 نسخه‌ها</h3>
-                        <ul class="quality-list">
-                            <li><strong>دوبله فارسی</strong> - صداگذاری فارسی</li>
-                            <li><strong>زیرنویس چسبیده</strong> - زیرنویس فارسی روی فیلم</li>
-                            <li><strong>زیرنویس جداگانه</strong> - باید زیرنویس رو جدا دانلود کنید</li>
-                        </ul>
-                    </div>
-
-                    <div class="help-section">
-                        <h3>📱 پخش کننده‌های پیشنهادی</h3>
-                        <p>برای پخش فایل‌های دانلود شده:</p>
-                        <ul class="quality-list">
-                            <li><strong>موبایل:</strong> MX Player, VLC</li>
-                            <li><strong>کامپیوتر:</strong> VLC, PotPlayer</li>
-                        </ul>
-        </main>
-
-            <!-- Learning View -->
-            <div id="learning-view" class="view">
-                <div class="section-header">
-                    <h2>🎓 مرکز یادگیری هوشمند</h2>
-                </div>
-
-                <div class="learning-dashboard">
-                    <!-- AI Teacher Card -->
-                    <div class="dashboard-card teacher-card">
-                        <div class="card-header">
-                            <span class="card-icon">👨‍🏫</span>
-                            <h3>استاد من</h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="current-teacher">
-                                <span id="teacher-avatar" class="teacher-avatar">🏴‍☠️</span>
-                                <div class="teacher-info">
-                                    <h4 id="teacher-name">Jack Sparrow</h4>
-                                    <p id="teacher-desc">Pirate Slang & Wit</p>
-                                </div>
-                            </div>
-                            <button id="change-teacher-btn" class="action-btn outline">تغییر استاد</button>
-                        </div>
-                    </div>
-
-                    <!-- Stats Row -->
-                    <div class="stats-row">
-                        <div class="stat-card">
-                            <span class="stat-value" id="vocab-count">0</span>
-                            <span class="stat-label">لغت جدید</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="stat-value" id="xp-points">0</span>
-                            <span class="stat-label">امتیاز XP</span>
-                        </div>
-                    </div>
-
-                    <!-- Feature Grid -->
-                    <div class="features-grid tiered">
-                        <div class="feature-card main-feature recognition" onclick="openMediaRecognition()">
-                            <div class="feature-glow"></div>
-                            <span class="feature-icon">👁️</span>
-                            <h4>هوش بینایی</h4>
-                            <p>شناسایی فیلم از روی عکس و ویدیو</p>
-                        </div>
-
-                        <div class="feature-card" onclick="openRoleplay()">
-                            <span class="feature-icon">🗣️</span>
-                            <h4>مکالمه (Roleplay)</h4>
-                            <p>تمرین با سناریوهای واقعی</p>
-                        </div>
-                        
-                        <div class="feature-card" onclick="openVocabulary()">
-                            <span class="feature-icon">🃏</span>
-                            <h4>فلش‌کارت‌ها</h4>
-                            <p>مرور لغات هوشمند</p>
-                        </div>
-
-                        <div class="feature-card" onclick="openBattle()">
-                            <span class="feature-icon">⚔️</span>
-                            <h4>Cinema Battle</h4>
-                            <p>مسابقه اطلاعات سینمایی</p>
-                        </div>
-
-                        <div class="feature-card" onclick="openCompanion()">
-                            <span class="feature-icon">💑</span>
-                            <h4>AI Companion</h4>
-                            <p>چت دوستانه با هوش مصنوعی</p>
-                        </div>
+                        <p>نام فیلم یا سریال را جستجو کنید.</p>
                     </div>
                 </div>
             </div>
 
-        <!-- Bottom Navigation -->
+            <div id="learning-view" class="view">
+                <h2>🎓 مرکز یادگیری</h2>
+                <div class="features-grid">
+                    <div class="feature-card" onclick="openMediaRecognition()">👁️ هوش بینایی</div>
+                    <div class="feature-card" onclick="openRoleplay()">🗣️ مکالمه</div>
+                    <div class="feature-card" onclick="openVocabulary()">🃏 فلش‌کارت</div>
+                </div>
+            </div>
+        </main>
+
         <nav class="bottom-nav">
-            <button class="nav-item active" data-view="home">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-                </svg>
-                <span>خانه</span>
-            </button>
-            <button class="nav-item" data-view="search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <path d="m21 21-4.35-4.35"></path>
-                </svg>
-                <span>جستجو</span>
-            </button>
-            <button class="nav-item" data-view="downloads">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                <span>دانلود</span>
-            </button>
-            <button class="nav-item" data-view="learning">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 14l9-5-9-5-9 5 9 5z"></path>
-                    <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path>
-                    <path d="M12 14l9-5-9-5-9 5 9 5z"></path>
-                    <path d="M12 14v7"></path>
-                </svg>
-                <span>یادگیری</span>
-            </button>
-            <button class="nav-item" data-view="help">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M9 9a3 3 0 1 1 4 2.83v1.17"></path>
-                    <circle cx="12" cy="17" r="0.5" fill="currentColor"></circle>
-                </svg>
-                <span>راهنما</span>
-            </button>
+            <button class="nav-item active" data-view="home">🏠 خانه</button>
+            <button class="nav-item" data-view="search">🔍 جستجو</button>
+            <button class="nav-item" data-view="downloads">📥 دانلود</button>
+            <button class="nav-item" data-view="learning">🎓 یادگیری</button>
         </nav>
     </div>
-
-    <!-- Toast Notification -->
     <div id="toast" class="toast hidden"></div>
-
-    <!-- App Script -->
-    <script src="app.js"></script>
+    <script src="app.js?v=7"></script>
 </body>
 </html>

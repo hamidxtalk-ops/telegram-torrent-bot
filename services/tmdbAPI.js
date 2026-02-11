@@ -11,9 +11,12 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 
 // Load config
-const TMDB_API_KEY = process.env.TMDB_API_KEY;
-const TMDB_READ_ACCESS_TOKEN = process.env.TMDB_READ_ACCESS_TOKEN;
-const PROXY_URL = process.env.PROXY_URL;
+// Helper to get config dynamically
+const getTmdbConfig = () => ({
+    apiKey: process.env.TMDB_API_KEY,
+    readToken: process.env.TMDB_READ_ACCESS_TOKEN,
+    proxyUrl: process.env.PROXY_URL
+});
 
 const TMDB_API_BASE = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
@@ -22,7 +25,7 @@ const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
  * Create TMDb API client with proper authentication
  */
 function createClient() {
-    const apiKey = process.env.TMDB_API_KEY || '';
+    const { apiKey } = getTmdbConfig();
 
     // Check if it's a Bearer token (JWT) or regular API key
     const isBearer = apiKey.startsWith('eyJ');

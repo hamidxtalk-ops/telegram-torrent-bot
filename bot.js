@@ -1,5 +1,4 @@
-import dotenv from 'dotenv';
-dotenv.config({ path: './.env' });
+import 'dotenv/config'; // Load env vars immediately
 import TelegramBot from 'node-telegram-bot-api';
 import express from 'express';
 import path from 'path';
@@ -60,23 +59,7 @@ import scraperUptvs from './services/scraperUptvs.js';
 import scraperZardFilm from './services/scraperZardFilm.js';
 import assistant from './services/openclawService.js';
 
-// AI Recognition Endpoint (In-App)
-app.post('/api/recognize', async (req, res) => {
-    try {
-        const { image, mimeType } = req.body;
-        if (!image) return res.status(400).json({ error: 'Image data required' });
 
-        console.log('👁️ Received image for recognition...');
-        const buffer = Buffer.from(image, 'base64');
-        const aiLearning = await import('./services/aiLearning.js');
-
-        const result = await aiLearning.recognizeMedia(buffer, mimeType || 'image/jpeg');
-        res.json(result);
-    } catch (error) {
-        console.error('Recognition Error:', error);
-        res.status(500).json({ error: 'Failed to recognize image' });
-    }
-});
 
 // Movie Learning Data
 app.get('/api/movie/:id/learning', async (req, res) => {
@@ -100,11 +83,13 @@ app.post('/api/recognize', express.json({ limit: '50mb' }), async (req, res) => 
         const { image, mimeType } = req.body;
         if (!image) return res.status(400).json({ error: 'Image data missing' });
 
+        console.log('👁️ Processing image for recognition (Endpoint v2)...');
         const buffer = Buffer.from(image, 'base64');
         // Import AI service dynamically to avoid circular dependencies if any
         const ai = await import('./services/aiLearning.js');
         const result = await ai.recognizeMedia(buffer, mimeType || 'image/jpeg');
 
+        console.log('✅ Recognition Result Object:', JSON.stringify(result, null, 2));
         res.json(result);
     } catch (error) {
         console.error('API Recognition Error:', error);
