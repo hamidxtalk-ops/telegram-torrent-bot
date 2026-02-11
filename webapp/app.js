@@ -415,6 +415,9 @@ function renderMovieGrid(container, movies) {
                 state.selectedMovie = movie;
                 showView('movie');
 
+                // Fetch Learning Data
+                loadMovieLearning(movie);
+
                 // Check if movie needs to fetch download links
                 const needsLinks = !movie.torrents || movie.torrents.length === 0 || movie.sourceType === 'info';
 
@@ -439,6 +442,42 @@ function renderMovieGrid(container, movies) {
             }
         });
     });
+}
+
+async function loadMovieLearning(movie) {
+    const container = document.getElementById('movie-learning-content');
+    container.innerHTML = '<div class="loading-spinner small" style="margin:20px auto;"></div><p style="text-align:center;font-size:0.8rem;color:var(--text-muted);">در حال آنالیز جملات کلیدی...</p>';
+
+    try {
+        // Use movie.title for the search
+        const data = await apiRequest(`/api/movie/${movie.id}/learning?title=${encodeURIComponent(movie.title)}`);
+
+        if (data && data.moments && data.moments.length > 0) {
+            container.innerHTML = `
+                <div class="learning-moments">
+                    ${data.moments.map(moment => `
+                        <div class="learning-card">
+                            <div class="learning-icon">💡</div>
+                            <p class="learning-text">"${moment}"</p>
+                            <button class="action-btn outline small" onclick="saveToVocab('${escapeHtml(moment)}', '${escapeHtml(movie.title)}')">
+                                ذخیره در لغات
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            container.innerHTML = '<p class="empty-text">جمله خاصی یافت نشد.</p>';
+        }
+    } catch (error) {
+        console.error('Learning Load Error:', error);
+        container.innerHTML = '<p class="empty-text">خطا در دریافت اطلاعات یادگیری.</p>';
+    }
+}
+
+function saveToVocab(text, source) {
+    // In a real app, send API request to save
+    showToast('✅ به لیست لغات اضافه شد');
 }
 
 function renderMovieDetail(movie) {

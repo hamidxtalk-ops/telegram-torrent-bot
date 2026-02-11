@@ -664,6 +664,24 @@ app.get('/api/download-guide', (req, res) => {
     });
 });
 
+// Movie Learning Data
+app.get('/api/movie/:id/learning', async (req, res) => {
+    try {
+        const movieTitle = req.query.title;
+        if (!movieTitle) return res.status(400).json({ error: 'Title required' });
+
+        // Use existing AI service to get moments
+        // In a real app, you might check if we already have this in DB
+        const aiLearning = await import('./services/aiLearning.js');
+        const moments = await aiLearning.default.getLearningMoments(movieTitle);
+
+        res.json({ moments });
+    } catch (error) {
+        console.error('Learning API Error:', error);
+        res.status(500).json({ error: 'Failed to fetch learning data' });
+    }
+});
+
 // ==================== LEARNING API ENDPOINTS ====================
 
 // Personas List
