@@ -74,28 +74,81 @@ export async function explainDialogue(text, movieTitle = 'Unknown Movie', person
 }
 
 /**
- * Generates a list of "Learning Moments" or key phrases for a movie
+ * Generates a comprehensive categorized learning plan for a movie
  */
-export async function getLearningMoments(movieTitle) {
-    if (!GEMINI_API_KEY) return [];
+export async function getComprehensiveLearningData(movieTitle) {
+    if (!GEMINI_API_KEY) return { error: 'API Key Missing' };
 
     try {
-        const prompt = `Provide 3 short famous or useful English dialogue lines from the movie "${movieTitle}" that are great for learning English, especially idioms or common conversational phrases. Respond ONLY in a JSON array format like: ["line 1", "line 2", "line 3"]`;
+        const prompt = `
+        You are a cinema-obsessed English teacher for Persian speakers.
+        Analyze the movie "${movieTitle}" and provide a learning guide.
+        
+        Return a JSON object with this exact structure:
+        {
+            "movie": "${movieTitle}",
+            "overview": "Single sentence summary of why this movie is good for learning.",
+            "sections": [
+                {
+                    "title": "🗣️ Key Dialogues",
+                    "id": "dialogue",
+                    "items": [
+                        { "text": "Original English sentence", "translated": "Persian translation", "note": "Brief context" }
+                    ]
+                },
+                {
+                    "title": "🤘 Slang & Idioms",
+                    "id": "slang",
+                    "items": [
+                        { "text": "Slang phrase", "translated": "Persian meaning", "note": "How to use it" }
+                    ]
+                },
+                {
+                    "title": "🧠 Grammar & Patterns",
+                    "id": "grammar",
+                    "items": [
+                        { "text": "Grammar structure", "translated": "Explain in Persian", "note": "Example" }
+                    ]
+                },
+                {
+                    "title": "🎬 Movie Trivia",
+                    "id": "trivia",
+                    "items": [
+                        { "text": "Interesting fact about the movie in Persian", "translated": "", "note": "" }
+                    ]
+                }
+            ]
+        }
+        
+        Provide 2-3 items for each section. Keep translations accurate and notes helpful for a student.
+        Respond ONLY with JSON. No Markdown.
+        `;
 
         const response = await axios.post(GEMINI_ENDPOINT, {
-            contents: [{
-                parts: [{ text: prompt }]
-            }]
+            contents: [{ parts: [{ text: prompt }] }]
         });
 
         const jsonText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
         const cleansedJson = jsonText.replace(/```json|```/g, '').trim();
         return JSON.parse(cleansedJson);
     } catch (error) {
-        console.error('Learning Moments Error:', error.message);
-        return [];
+        console.error('Comprehensive Learning Error:', error.message);
+        return { error: 'Failed to generate comprehensive data' };
     }
 }
+
+/**
+ * Generates a list of "Learning Moments" or key phrases for a movie
+ */
+export async function getLearningMoments(movieTitle) {
+    // We can now just use a subset of comprehensive data or keep this simple
+    const data = await getComprehensiveLearningData(movieTitle);
+    if (data.sections && data.sections[0]) {
+        return data.sections[0].items.map(i => i.text);
+    }
+    return [];
+}
+
 
 /**
  * Detects movie from media (image, audio, or video)

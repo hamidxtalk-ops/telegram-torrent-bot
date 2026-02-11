@@ -51,10 +51,14 @@
                     <path d="m9 18 6-6-6-6"></path>
                 </svg>
             </button>
-            <a href="https://t.me/Mound84" target="_blank" class="support-btn">
-                <span class="support-icon">📞</span>
-                <span class="support-text">پشتیبانی</span>
-            </a>
+            <div class="header-right">
+                <button id="ai-vision-btn" class="header-icon-btn" onclick="openMediaRecognition()">
+                    <span class="btn-icon">👁️</span>
+                </button>
+                <a href="https://t.me/Mound84" target="_blank" class="support-btn">
+                    <span class="support-icon">📞</span>
+                </a>
+            </div>
             <div class="logo">
                 <span class="logo-icon">🎬</span>
                 <span class="logo-text">فیلم‌یاب</span>
@@ -187,11 +191,16 @@
                     </div>
 
                     <!-- AI Learning Section -->
-                    <div class="learning-section">
-                        <h3>🎓 یادگیری با این فیلم</h3>
-                        <div id="movie-learning-content" class="learning-content">
-                            <!-- Populated by JS -->
-                            <div class="loading-spinner small"></div>
+                    <div class="learning-section premium">
+                        <div class="section-header">
+                            <h3>🎓 مرکز یادگیری اختصاصی این فیلم</h3>
+                            <button class="refresh-ai-btn" id="refresh-movie-ai">
+                                <span>بروزرسانی هوشمند</span> ✨
+                            </button>
+                        </div>
+                        <div id="movie-learning-content" class="learning-tabs-container">
+                            <!-- Populated with categorized sections by JS -->
+                            <div class="loading-spinner"></div>
                         </div>
                     </div>
 
@@ -345,17 +354,24 @@
                     </div>
 
                     <!-- Feature Grid -->
-                    <div class="features-grid">
+                    <div class="features-grid tiered">
+                        <div class="feature-card main-feature recognition" onclick="openMediaRecognition()">
+                            <div class="feature-glow"></div>
+                            <span class="feature-icon">👁️</span>
+                            <h4>هوش بینایی</h4>
+                            <p>شناسایی فیلم از روی عکس و ویدیو</p>
+                        </div>
+
                         <div class="feature-card" onclick="openRoleplay()">
                             <span class="feature-icon">🗣️</span>
                             <h4>مکالمه (Roleplay)</h4>
-                            <p>تمرین مکالمه با سناریوهای واقعی</p>
+                            <p>تمرین با سناریوهای واقعی</p>
                         </div>
                         
                         <div class="feature-card" onclick="openVocabulary()">
                             <span class="feature-icon">🃏</span>
                             <h4>فلش‌کارت‌ها</h4>
-                            <p>مرور لغات ذخیره شده</p>
+                            <p>مرور لغات هوشمند</p>
                         </div>
 
                         <div class="feature-card" onclick="openBattle()">

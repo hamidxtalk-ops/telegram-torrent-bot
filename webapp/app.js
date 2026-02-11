@@ -446,32 +446,53 @@ function renderMovieGrid(container, movies) {
 
 async function loadMovieLearning(movie) {
     const container = document.getElementById('movie-learning-content');
-    container.innerHTML = '<div class="loading-spinner small" style="margin:20px auto;"></div><p style="text-align:center;font-size:0.8rem;color:var(--text-muted);">در حال آنالیز جملات کلیدی...</p>';
+    container.innerHTML = `
+        <div style="text-align:center;padding:40px;">
+            <div class="loading-spinner" style="margin:0 auto 20px;"></div>
+            <p style="color:var(--text-secondary);font-size:0.9rem;">
+                هوش مصنوعی در حال تحلیل عمیق فیلم <b>${escapeHtml(movie.title)}</b>...<br>
+                (استخراج لغات، اصطلاحات خیابانی و نکات دستوری)
+            </p>
+        </div>
+    `;
 
     try {
-        // Use movie.title for the search
         const data = await apiRequest(`/api/movie/${movie.id}/learning?title=${encodeURIComponent(movie.title)}`);
 
-        if (data && data.moments && data.moments.length > 0) {
+        if (data && data.sections) {
             container.innerHTML = `
-                <div class="learning-moments">
-                    ${data.moments.map(moment => `
-                        <div class="learning-card">
-                            <div class="learning-icon">💡</div>
-                            <p class="learning-text">"${escapeHtml(moment)}"</p>
-                            <button class="action-btn outline small" onclick="saveToVocab('${escapeForJs(moment)}', '${escapeForJs(movie.title)}')">
-                                ذخیره در لغات
-                            </button>
+                <div class="learning-movie-intro" style="background:var(--accent-gradient-soft);padding:15px;border-radius:12px;margin-bottom:20px;border:1px solid var(--accent-primary);">
+                    <p style="font-size:0.9rem;color:var(--text-primary);line-height:1.5;">🎬 ${escapeHtml(data.overview)}</p>
+                </div>
+                <div class="learning-tabs-container">
+                    ${data.sections.map(section => `
+                        <div class="learning-category">
+                            <div class="category-title">${section.title}</div>
+                            <div class="learning-grid">
+                                ${section.items.map(item => `
+                                    <div class="learning-item-card" onclick="saveToVocab('${escapeForJs(item.text)}', '${escapeForJs(movie.title)}')">
+                                        <div class="item-main-text">${escapeHtml(item.text)}</div>
+                                        ${item.translated ? `<div class="item-translated">${escapeHtml(item.translated)}</div>` : ''}
+                                        ${item.note ? `<div class="item-note">${escapeHtml(item.note)}</div>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     `).join('')}
                 </div>
             `;
         } else {
-            container.innerHTML = '<p class="empty-text">جمله خاصی یافت نشد.</p>';
+            container.innerHTML = `
+                <div style="text-align:center;padding:40px;">
+                    <span style="font-size:2rem;">⚠️</span>
+                    <p style="margin-top:10px;">تحلیل هوشمند در حال حاضر در دسترس نیست.</p>
+                    <button class="primary-btn" onclick="loadMovieLearning(state.selectedMovie)" style="margin-top:15px;">تلاش دوباره</button>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Learning Load Error:', error);
-        container.innerHTML = '<p class="empty-text">خطا در دریافت اطلاعات یادگیری.</p>';
+        container.innerHTML = '<p class="empty-text">❌ خطا در برقراری ارتباط با مغز هوش مصنوعی.</p>';
     }
 }
 
@@ -1424,7 +1445,16 @@ function switchTab(viewId) {
     state.currentView = viewId;
 }
 
-// Placeholder functions for buttons
+function openMediaRecognition() {
+    // Open a toast and close the app to allow the user to send a file to the bot
+    // Since Mini App cannot easily access camera/gallery for direct uploads to a bot API without complex logic
+    // we guide the user to the bot's intelligent interaction.
+    showToast('🤖 لطفاً یک عکس یا ویدیو از فیلم بفرستید تا شناسایی شود');
+    setTimeout(() => {
+        if (tg) tg.close();
+    }, 2000);
+}
+
 function openRoleplay() {
     tg.close();
     tg.sendData(JSON.stringify({ action: 'roleplay' }));
