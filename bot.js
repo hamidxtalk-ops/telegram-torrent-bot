@@ -58,6 +58,7 @@ import subtitleAPI from './services/subtitleAPI.js';
 import scraperCoolDL from './services/scraperCoolDL.js';
 import scraperUptvs from './services/scraperUptvs.js';
 import scraperZardFilm from './services/scraperZardFilm.js';
+import assistant from './services/openclawService.js';
 
 // AI Recognition Endpoint (In-App)
 app.post('/api/recognize', async (req, res) => {
@@ -74,90 +75,6 @@ app.post('/api/recognize', async (req, res) => {
     } catch (error) {
         console.error('Recognition Error:', error);
         res.status(500).json({ error: 'Failed to recognize image' });
-    }
-});
-
-// Search API - LASER FOCUS: Return ONLY ONE best-matching movie
-app.get('/api/search', async (req, res) => {
-    try {
-        const query = req.query.q;
-        const year = req.query.year;
-        if (!query) {
-            return res.status(400).json({ error: 'Query parameter q is required' });
-        }
-
-        console.log(`🔍 API search (Laser Focus): ${query} ${year ? `(${year})` : ''}`);
-
-        // Import scrapers
-        const scraperTelegram = (await import('./services/scraperTelegramChannels.js')).default;
-        const scraperStreamWide = (await import('./services/scraperStreamWide.js')).default;
-        const scraperTorrentio = (await import('./services/scraperTorrentio.js')).default;
-
-        // Timeout wrapper
-        const withTimeout = (promise, timeoutMs = 6000) => {
-            return Promise.race([
-                promise,
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeoutMs))
-            ]).catch(err => {
-                console.log(`⏱ Scraper timeout/error: ${err.message}`);
-                return [];
-            });
-        };
-
-        // STEP 1: Get the best movie match from TMDB
-        const tmdbResults = await withTimeout(tmdb.searchMovies(query, year), 4000);
-
-        if (!tmdbResults || tmdbResults.length === 0) {
-            return res.json({ results: [] });
-        }
-
-        // Take ONLY the first (best/most popular) match
-        const bestMatch = tmdbResults[0];
-        const englishTitle = bestMatch.originalTitle || bestMatch.title;
-        const movieYear = bestMatch.year;
-
-        // STEP 2: Scrape torrents & links only for this SPECIFIC movie
-        // Parallel but prioritizing speed needed for "Laser Focus"
-
-        // Define regex for stricter matching if year is available
-        const yearRegex = movieYear ? new RegExp(movieYear) : null;
-
-        const [telegramLinks, torrentioLinks, webLinks] = await Promise.all([
-            withTimeout(scraperTelegram.search(englishTitle), 2500),
-            withTimeout(scraperTorrentio.search(englishTitle), 3500),
-            withTimeout(scraperStreamWide.search(englishTitle), 3000)
-        ]);
-
-        // Filter results more aggressively to match the year if possible
-        const filterByYear = (items) => {
-            if (!yearRegex) return items;
-            return items.filter(item => {
-                // If item has year info, check it. If not, keep it loosely.
-                // Assuming title or other fields might have year.
-                // For simplicity, just return all for now or do basic string check
-                return true;
-            });
-        };
-
-        const allInOne = {
-            id: bestMatch.id,
-            title: bestMatch.title,
-            originalTitle: bestMatch.originalTitle,
-            year: bestMatch.year,
-            poster: bestMatch.poster_path ? `https://image.tmdb.org/t/p/w500${bestMatch.poster_path}` : null,
-            overview: bestMatch.overview,
-            rating: bestMatch.vote_average,
-            backdrop: bestMatch.backdrop_path ? `https://image.tmdb.org/t/p/w780${bestMatch.backdrop_path}` : null,
-            genres: bestMatch.genre_ids, // Would need mapping to names
-            telegram: telegramLinks || [],
-            torrents: [...(torrentioLinks || []), ...(webLinks || [])].filter(t => t.title && t.link)
-        };
-
-        res.json({ results: [allInOne] });
-
-    } catch (error) {
-        console.error('API Search Error:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
@@ -998,6 +915,40 @@ async function main() {
         });
 
         // /help command
+        bot.onText(/\/ai (.+)/, async (msg, match) => {
+            const chatId = msg.chat.id;
+            const text = match[1];
+            const userId = msg.from.id;
+
+            if (db.isBanned(userId)) return;
+
+            const processingMsg = await bot.sendMessage(chatId, '🤖 *در حال پردازش...*', { parse_mode: 'Markdown' });
+
+            try {
+                const result = await assistant.processAssistantRequest(text, userId);
+
+                await bot.deleteMessage(chatId, processingMsg.message_id);
+
+                if (result.intent === 'reminder') {
+                    const { task, time } = result.data;
+                    db.addReminder(userId, task, time);
+                    const localTime = new Date(time).toLocaleString('fa-IR');
+                    await bot.sendMessage(chatId, `⏰ *یادآوری ثبت شد!*\n\n📝 کار: ${task}\n📅 زمان: ${localTime}`, { parse_mode: 'Markdown' });
+                } else if (result.intent === 'search') {
+                    const { query } = result.data;
+                    const searchMsg = await bot.sendMessage(chatId, `🔍 *درحال جستجوی وب برای:* ${query}...`, { parse_mode: 'Markdown' });
+                    const answer = await assistant.performAISearch(query);
+                    await bot.deleteMessage(chatId, searchMsg.message_id);
+                    await bot.sendMessage(chatId, `🌐 *نتیجه جستجو برای:* ${query}\n\n${answer}`, { parse_mode: 'Markdown' });
+                } else {
+                    await bot.sendMessage(chatId, result.data.response || 'متوجه نشدم، لطفاً مجدداً بپرسید.', { parse_mode: 'Markdown' });
+                }
+            } catch (error) {
+                console.error('Assistant Command Error:', error);
+                await bot.sendMessage(chatId, '❌ متاسفانه خطایی در پردازش رخ داد.');
+            }
+        });
+
         bot.onText(/\/help/, async (msg) => {
             await handleHelp(bot, msg);
         });
@@ -1675,6 +1626,21 @@ async function main() {
         });
 
         console.log('✅ Bot is running! Press Ctrl+C to stop.');
+
+        // ==================== REMINDER SCHEDULER ====================
+        setInterval(async () => {
+            try {
+                const dueReminders = db.getDueReminders();
+                for (const reminder of dueReminders) {
+                    await bot.sendMessage(reminder.user_id, `🔔 *یادآوری:* \n\n ${reminder.task}`, { parse_mode: 'Markdown' });
+                    db.completeReminder(reminder.id);
+                    console.log(`Reminder sent to ${reminder.user_id}: ${reminder.task}`);
+                }
+            } catch (error) {
+                console.error('Reminder Scheduler Error:', error);
+            }
+        }, 60000); // Check every minute
+
     } else {
         console.log('✅ API server is running (no Telegram bot)');
     }
@@ -1699,7 +1665,7 @@ async function main() {
     });
 }
 
-// Start the server
+// Start everything
 main().catch(error => {
     console.error('Failed to start:', error);
     process.exit(1);

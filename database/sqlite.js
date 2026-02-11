@@ -117,6 +117,19 @@ class DatabaseService {
           status TEXT DEFAULT 'active',
           created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Reminders table
+      CREATE TABLE IF NOT EXISTS reminders (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          task TEXT NOT NULL,
+          remind_at TEXT NOT NULL,
+          status TEXT DEFAULT 'pending',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders(user_id);
+      CREATE INDEX IF NOT EXISTS idx_reminders_status ON reminders(status);
+      CREATE INDEX IF NOT EXISTS idx_reminders_at ON reminders(remind_at);
     `;
         this.db.run(schema);
     }
@@ -559,6 +572,40 @@ class DatabaseService {
      */
     getAllUsers() {
         return this.all('SELECT telegram_id FROM users WHERE is_banned = 0');
+    }
+
+    // ==================== REMINDERS ====================
+
+    /**
+     * Create a new reminder
+     */
+    addReminder(userId, task, remindAt) {
+        this.run(`
+            INSERT INTO reminders (user_id, task, remind_at)
+            VALUES (?, ?, ?)
+        `, [userId, task, remindAt]);
+        return true;
+    }
+
+    /**
+     * Get pending reminders that are due
+     */
+    getDueReminders() {
+        const now = new Date().toISOString();
+        return this.all(`
+            SELECT * FROM reminders 
+            WHERE status = 'pending' AND remind_at <= ?
+        `, [now]);
+    }
+
+    /**
+     * Mark reminder as completed
+     */
+    completeReminder(id) {
+        this.run(
+            'UPDATE reminders SET status = "completed" WHERE id = ?',
+            [id]
+        );
     }
 
     /**
