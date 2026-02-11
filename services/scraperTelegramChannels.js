@@ -285,7 +285,6 @@ export function getTelegramBotLinks(imdbId) {
 }
 
 export default {
-    searchChannel, // Exported now
     searchTelegramChannels,
     searchWithLinks,
     getFilmehBotLink,

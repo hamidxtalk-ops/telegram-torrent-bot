@@ -413,7 +413,7 @@ app.get('/api/movie/:id', async (req, res) => {
         const scraperTelegram = (await import('./services/scraperTelegramChannels.js')).default;
 
         // Search ALL sources in parallel - Telegram channels FIRST
-        const [telegramRes, ytsRes, x1337Res, tpbRes, tgxRes, limeRes, nyaaRes, iranianRes] = await Promise.allSettled([
+        const [telegramRes, ytsRes, x1337Res, tpbRes, tgxRes, limeRes, nyaaRes, iranianRes, torrentioRes] = await Promise.allSettled([
             scraperTelegram.searchWithLinks(movieTitle, 5),
             yts.searchMovies(movieTitle, 3),
             scraper1337x.searchWithMagnets(movieTitle, 5),
@@ -522,10 +522,18 @@ app.get('/api/movie/:id', async (req, res) => {
             })));
         }
 
-        // 9. Torrentio - check the last item in the destructured array
-        // The Promise.allSettled was called with 9 items, but we only destructured 8
-        // So Torrentio result isn't captured. Let's skip this for now or fix the destructuring.
-        // For now, just skip Torrentio since it's failing anyway
+        // 9. Torrentio
+        if (torrentioRes.status === 'fulfilled' && torrentioRes.value?.length > 0) {
+            for (const movie of torrentioRes.value) {
+                if (movie.torrents) {
+                    allTorrents.push(...movie.torrents.map(t => ({
+                        ...t,
+                        source: t.source || 'Torrentio',
+                        type: 'torrent'
+                    })));
+                }
+            }
+        }
 
         console.log(`📥 Found ${allTorrents.length} total download links`);
 
@@ -1418,7 +1426,6 @@ async function main() {
                     await handleExplainQuote(bot, query, movieIndex, quoteIndex);
                     return;
                 }
-
                 // More sources
                 if (data.startsWith('more:')) {
                     const movieId = data.split(':')[1];

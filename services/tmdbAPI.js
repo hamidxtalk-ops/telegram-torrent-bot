@@ -7,6 +7,13 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: './.env' });
 import axios from 'axios';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+import { SocksProxyAgent } from 'socks-proxy-agent';
+
+// Load config
+const TMDB_API_KEY = process.env.TMDB_API_KEY;
+const TMDB_READ_ACCESS_TOKEN = process.env.TMDB_READ_ACCESS_TOKEN;
+const PROXY_URL = process.env.PROXY_URL;
 
 const TMDB_API_BASE = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';

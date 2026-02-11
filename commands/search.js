@@ -208,7 +208,7 @@ export async function handleSearch(bot, msg, query) {
     } catch (error) {
         console.error('Search error:', error);
         try { await bot.deleteMessage(chatId, searchingMsg.message_id); } catch (e) { }
-        await bot.sendMessage(chat_id || chatId, t(lang, 'errorGeneral'));
+        await bot.sendMessage(chatId, t(lang, 'errorGeneral'));
     }
 }
 
@@ -494,7 +494,7 @@ export async function handleMovieSelect(bot, query, indexStr) {
                             movie = { ...movie, torrents: iranianResults[0].torrents, source: iranianResults[0].source || 'Persian' };
                             results[index] = movie;
                             searchResults.set(`${userId}:results`, results);
-                            console.log(`Persian sources: Found ${movie.torrents.length} download links`);
+                            console.log(`Persian sources: Found ${iranianResults[0].torrents.length} download links`);
                         }
                     } catch (e) {
                         console.log('Persian sources failed:', e.message);
@@ -510,7 +510,7 @@ export async function handleMovieSelect(bot, query, indexStr) {
                             movie = { ...movie, torrents: swResults[0].torrents, source: 'StreamWide' };
                             results[index] = movie;
                             searchResults.set(`${userId}:results`, results);
-                            console.log(`StreamWide: Found ${movie.torrents.length} links`);
+                            console.log(`StreamWide: Found ${swResults[0].torrents.length} links`);
                         }
                     } catch (e) {
                         console.log('StreamWide failed:', e.message);
@@ -526,7 +526,7 @@ export async function handleMovieSelect(bot, query, indexStr) {
                             movie = { ...movie, torrents: trResults[0].torrents, source: 'Torrentio' };
                             results[index] = movie;
                             searchResults.set(`${userId}:results`, results);
-                            console.log(`Torrentio: Found ${movie.torrents.length} links`);
+                            console.log(`Torrentio: Found ${trResults[0].torrents.length} links`);
                         }
                     } catch (e) {
                         console.log('Torrentio failed:', e.message);
@@ -542,7 +542,7 @@ export async function handleMovieSelect(bot, query, indexStr) {
                             movie = { ...movie, torrents: tgResults[0].torrents, source: 'Telegram' };
                             results[index] = movie;
                             searchResults.set(`${userId}:results`, results);
-                            console.log(`Telegram Channels: Found ${movie.torrents.length} links`);
+                            console.log(`Telegram Channels: Found ${tgResults[0].torrents.length} links`);
                         }
                     } catch (e) {
                         console.log('Telegram Channels failed:', e.message);
@@ -846,7 +846,6 @@ export default {
     handleMoreSources,
     handleScraperSelect,
     sendMovieDetails,
-    handleMagnetRequest,
     handleSubtitleRequest,
     handleMagnetCopy
 };
