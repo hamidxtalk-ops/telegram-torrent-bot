@@ -1912,3 +1912,67 @@ body::before {
          c u r s o r :   p o i n t e r ;  
  }  
  
+
+/* ===================================
+   Shazam Scaling & Animations
+   =================================== */
+
+.shazam-pulse {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 40px auto;
+    background: var(--accent-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 50px;
+    box-shadow: var(--shadow-glow);
+    animation: main-pulse 2s infinite;
+}
+
+.shazam-pulse::before,
+.shazam-pulse::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    opacity: 0.5;
+    z-index: -1;
+}
+
+.shazam-pulse::before {
+    animation: shazam-ring 2s infinite;
+}
+
+.shazam-pulse::after {
+    animation: shazam-ring 2s infinite 0.5s;
+}
+
+@keyframes main-pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(139, 92, 246, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+}
+
+@keyframes shazam-ring {
+    0% { width: 100%; height: 100%; opacity: 0.5; }
+    100% { width: 250%; height: 250%; opacity: 0; }
+}
+
+.loading-recognition {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.loading-recognition p {
+    margin-top: 20px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}

@@ -5,10 +5,52 @@
 
 import axios from 'axios';
 
-// Dynamic getter to avoid hoisting issues
-const getApiKey = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+// --- API Key Manager ---
+const API_KEYS = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3,
+    process.env.GEMINI_API_KEY_4,
+    process.env.GEMINI_API_KEY_5
+].filter(Boolean);
+
+let currentKeyIndex = 0;
+
+const getApiKey = () => API_KEYS[currentKeyIndex] || process.env.GOOGLE_API_KEY;
 const GEMINI_MODEL = 'gemini-2.0-flash';
 const getEndpoint = () => `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${getApiKey()}`;
+
+/**
+ * Rotates to the next available API key if a rate limit is hit
+ */
+function rotateKey() {
+    if (API_KEYS.length <= 1) return false;
+    currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
+    console.log(`♻️ Switched to API Key #${currentKeyIndex + 1}`);
+    return true;
+}
+
+/**
+ * Intelligent AI Request Wrapper with Retry/Rotation logic
+ * Exported so other services can reuse the rotation/quota logic.
+ */
+export async function callGemini(payload, retryCount = 0) {
+    try {
+        const response = await axios.post(getEndpoint(), payload);
+        return response;
+    } catch (error) {
+        const isRateLimit = error.response?.status === 429 ||
+            (error.response?.data?.error?.message && error.response.data.error.message.includes('quota'));
+
+        if (isRateLimit && retryCount < API_KEYS.length - 1) {
+            console.warn(`⚠️ Rate limit hit on Key #${currentKeyIndex + 1}. Attempting rotation...`);
+            if (rotateKey()) {
+                return callGemini(payload, retryCount + 1);
+            }
+        }
+        throw error;
+    }
+}
 
 /**
  * Explains a piece of movie dialogue in a language learning context
@@ -55,7 +97,7 @@ export async function explainDialogue(text, movieTitle = 'Unknown Movie', person
         }
         `;
 
-        const response = await axios.post(getEndpoint(), {
+        const response = await callGemini({
             contents: [{
                 parts: [{ text: prompt }]
             }]
@@ -126,7 +168,7 @@ export async function getComprehensiveLearningData(movieTitle) {
         Respond ONLY with JSON. No Markdown.
         `;
 
-        const response = await axios.post(getEndpoint(), {
+        const response = await callGemini({
             contents: [{ parts: [{ text: prompt }] }]
         });
 
@@ -208,7 +250,7 @@ export async function recognizeMedia(fileBuffer, mimeType) {
         RETURN ONLY RAW JSON. NO MARKDOWN.
         `;
 
-        const response = await axios.post(getEndpoint(), {
+        const response = await callGemini({
             contents: [{
                 parts: [
                     { text: prompt },
@@ -263,7 +305,7 @@ export async function searchByContext(query) {
         If unsure, set found: false.
         `;
 
-        const response = await axios.post(getEndpoint(), {
+        const response = await callGemini({
             contents: [{ parts: [{ text: prompt }] }]
         });
 
@@ -321,7 +363,7 @@ export async function analyzePronunciation(audioBuffer, targetText, mimeType = '
             `;
         }
 
-        const response = await axios.post(getEndpoint(), {
+        const response = await callGemini({
             contents: [{
                 parts: [
                     { text: prompt },
@@ -378,7 +420,7 @@ export async function chatWithPersona(persona, userInput, history) {
         Response:
         `;
 
-        const response = await axios.post(getEndpoint(), {
+        const response = await callGemini({
             contents: [{ parts: [{ text: prompt }] }]
         });
 
@@ -466,7 +508,7 @@ export async function analyzeImage(fileBuffer, mode) {
                 prompt = 'Analyze this image and describe it.';
         }
 
-        const response = await axios.post(getEndpoint(), {
+        const response = await callGemini({
             contents: [{
                 parts: [
                     { text: prompt },

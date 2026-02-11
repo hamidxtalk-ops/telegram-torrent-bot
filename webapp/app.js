@@ -1477,37 +1477,92 @@ function switchTab(viewId) {
 function openMediaRecognition() {
     // Trigger the hidden file input
     document.getElementById('camera-input').click();
-}
+    /**
+     * Compresses an image before upload to speed up AI recognition
+     */
+    async function compressImage(file, maxWidth = 800) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
 
-// Handle Camera/File Selection
-document.getElementById('camera-input').addEventListener('change', async function (e) {
-    console.log('📸 Camera input triggered');
-    const file = e.target.files[0];
-    if (!file) {
-        console.log('❌ No file selected');
-        return;
+                    if (width > maxWidth) {
+                        height = (maxWidth / width) * height;
+                        width = maxWidth;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Use lower quality for AI (webp/jpeg is fine)
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                    resolve(compressedBase64.split(',')[1]);
+                };
+            };
+        });
     }
 
-    console.log(`📁 File selected: ${file.name} (${file.type}, ${file.size} bytes)`);
+    /**
+     * Shows the Shazam Pulse UI during recognition
+     */
+    function showShazamLoading() {
+        const mainContent = document.querySelector('.main-content');
+        const existingViews = document.querySelectorAll('.view');
+        existingViews.forEach(v => v.classList.remove('active'));
 
-    // Show loading state
-    if (typeof showLoadingScreen === 'function') {
-        showLoadingScreen('🤖 در حال تماشای تصویر...');
-    } else {
-        console.warn('⚠️ showLoadingScreen is not defined');
+        // Create or show pulse view
+        let pulseView = document.getElementById('shazam-view');
+        if (!pulseView) {
+            pulseView = document.createElement('div');
+            pulseView.id = 'shazam-view';
+            pulseView.className = 'view active';
+            pulseView.innerHTML = `
+            <div class="loading-recognition">
+                <div class="shazam-pulse">🎬</div>
+                <p>در حال گوش دادن به تصویر...</p>
+            </div>
+        `;
+            mainContent.appendChild(pulseView);
+        }
+        pulseView.classList.add('active');
     }
 
-    try {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
+    function hideShazamLoading() {
+        const pulseView = document.getElementById('shazam-view');
+        if (pulseView) pulseView.classList.remove('active');
+        // Return to home or previous
+        document.getElementById('home-view').classList.add('active');
+    }
 
-        reader.onloadend = async function () {
-            console.log('📖 File read into memory. Preparing to send...');
-            const base64Data = reader.result.split(',')[1];
-            const mimeType = file.type;
+    // Handle Camera/File Selection
+    document.getElementById('camera-input').addEventListener('change', async function (e) {
+        console.log('📸 Camera input triggered');
+        const file = e.target.files[0];
+        if (!file) {
+            console.log('❌ No file selected');
+            return;
+        }
+
+        console.log(`📁 File selected: ${file.name} (${file.type}, ${file.size} bytes)`);
+
+        // Show Shazam Pulse
+        showShazamLoading();
+
+        try {
+            console.log('📖 Compressing image for speed...');
+            const base64Data = await compressImage(file);
+            const mimeType = 'image/jpeg'; // Standardized after compression
 
             try {
-                console.log('🚀 Sending POST request to /api/recognize...');
+                console.log('🚀 Sending OPTIMIZED request to /api/recognize...');
                 const response = await apiRequest('/api/recognize', {
                     method: 'POST',
                     body: JSON.stringify({
@@ -1516,6 +1571,7 @@ document.getElementById('camera-input').addEventListener('change', async functio
                     })
                 });
 
+                hideShazamLoading();
                 console.log('✅ Server Response:', JSON.stringify(response, null, 2));
 
                 if (response.error) {
@@ -1539,24 +1595,24 @@ document.getElementById('camera-input').addEventListener('change', async functio
                         getMovieDetails(firstMatch.id);
                     }
                 } else {
-                    hideLoadingScreen();
+                    hideShazamLoading();
                     showToast('❌ متاسفانه فیلمی شناسایی نشد.');
                 }
             } catch (err) {
                 console.error('Recognition Error:', err);
-                hideLoadingScreen();
+                hideShazamLoading();
                 showToast('❌ خطا در ارتباط با هوش مصنوعی. حجم عکس ممکن است خیلی زیاد باشد.');
             }
-        };
-    } catch (error) {
-        console.error('File Error:', error);
-        hideLoadingScreen();
-        showToast('❌ خطا در پردازش تصویر');
-    }
+        } catch (error) {
+            console.error('File Error:', error);
+            hideShazamLoading();
+            showToast('❌ خطا در پردازش تصویر');
+        }
 
-    // Reset input
-    e.target.value = '';
-});
+        // Reset input
+        e.target.value = '';
+    });
+}
 
 function openRoleplay() {
     tg.close();

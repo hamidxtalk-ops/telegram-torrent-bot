@@ -4,8 +4,7 @@
  */
 
 import fs from 'fs';
-import axi from 'axios';
-import ai from './aiLearning.js';
+import { callGemini } from './aiLearning.js';
 
 /**
  * Parse SRT content to plain text
@@ -42,19 +41,7 @@ export async function processSubtitleToFlashcards(filePath, movieTitle) {
         // Let's take the first 5000 characters as a sample or chunk it.
         // For this prototype, we'll process a significant chunk.
         const textSample = fullText.substring(0, 10000);
-
-        // Use AI to extract words
-        // We'll reuse the AI service endpoint logic but with a custom prompt here
-        // forcing it to return a clean JSON list.
-
-        // Note: interacting with aiLearning's endpoint directly if exported or duplicating logic.
-        // aiLearning.js doesn't export the raw axios call easily without a wrapper.
-        // Let's assume we add a method to aiLearning for "extractVocabFromText".
-        // Or we just implement it here using the key from aiLearning (or process.env).
-
-        const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-        const GEMINI_MODEL = 'gemini-2.0-flash';
-        const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+        // Note: Centralized callGemini handles keys and rotation.
 
         const prompt = `
         Analyze the following movie transcript from "${movieTitle}".
@@ -75,7 +62,7 @@ export async function processSubtitleToFlashcards(filePath, movieTitle) {
         ${textSample}
         `;
 
-        const response = await axi.post(GEMINI_ENDPOINT, {
+        const response = await callGemini({
             contents: [{ parts: [{ text: prompt }] }]
         });
 

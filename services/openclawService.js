@@ -3,18 +3,14 @@
  * Handles natural language task processing using Gemini
  */
 
-import axios from 'axios';
+import { callGemini } from './aiLearning.js';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-const GEMINI_MODEL = 'gemini-2.0-flash';
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+// Model configuration handled centrally in aiLearning.js
 
 /**
  * Parses user input to determine intent and extract data
  */
 export async function processAssistantRequest(text, userId) {
-    if (!GEMINI_API_KEY) return { type: 'error', message: 'API key not configured' };
-
     try {
         const now = new Date().toISOString();
         const prompt = `
@@ -50,7 +46,7 @@ export async function processAssistantRequest(text, userId) {
         }
         `;
 
-        const response = await axios.post(GEMINI_ENDPOINT, {
+        const response = await callGemini({
             contents: [{ parts: [{ text: prompt }] }]
         });
 
@@ -67,8 +63,6 @@ export async function processAssistantRequest(text, userId) {
  * Performs a broad web-style search using Gemini's knowledge
  */
 export async function performAISearch(query) {
-    if (!GEMINI_API_KEY) return 'Search service unavailable.';
-
     try {
         const prompt = `
         You are a highly capable search engine assistant. 
@@ -79,7 +73,7 @@ export async function performAISearch(query) {
         Give a comprehensive, helpful, and accurate summary.
         `;
 
-        const response = await axios.post(GEMINI_ENDPOINT, {
+        const response = await callGemini({
             contents: [{ parts: [{ text: prompt }] }]
         });
 
