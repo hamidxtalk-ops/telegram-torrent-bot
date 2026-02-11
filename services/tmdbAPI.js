@@ -47,7 +47,7 @@ function createClient() {
 /**
  * Search for movies on TMDb
  */
-export async function searchMovies(query) {
+export async function searchMovies(query, year = null) {
     const { client, hasKey } = createClient();
     if (!hasKey) {
         console.warn('TMDb API key not configured');
@@ -55,13 +55,17 @@ export async function searchMovies(query) {
     }
 
     try {
-        const response = await client.get('/search/movie', {
-            params: {
-                query: query,
-                include_adult: false,
-                language: 'fa-IR' // Get Persian metadata if available
-            }
-        });
+        const params = {
+            query: query,
+            include_adult: false,
+            language: 'fa-IR' // Get Persian metadata if available
+        };
+
+        if (year) {
+            params.primary_release_year = year;
+        }
+
+        const response = await client.get('/search/movie', { params });
 
         console.log('✅ TMDb search successful');
 

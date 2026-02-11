@@ -89,85 +89,93 @@ export async function handleSearch(bot, msg, query) {
 
             const [ytsRes, x1337Res, torrentioRes, telegramRes, streamwideRes, eztvRes, nyaaRes] = await Promise.all(searchPromises);
 
-            // LASER FOCUS: The user wants exactly ONE movie. 
-            // We will pick the absolute best match from TMDB or the search results.
-            let bestMovie = null;
+            // COLLECT ALL MOVIES: Gather all results from all sources
+            const allMovies = new Map(); // Key: movieTitle+year, Value: movie object
 
-            if (tmdbMatches.length > 0) {
-                const m = tmdbMatches[0];
-                bestMovie = {
-                    title: m.title,
-                    year: m.release_date?.substring(0, 4),
-                    poster: m.poster_path ? `https://image.tmdb.org/t/p/w342${m.poster_path}` : null,
-                    rating: m.vote_average?.toFixed(1),
-                    torrents: [],
-                    source: 'tmdb',
-                    synopsis: m.overview || '',
-                    id: m.id
-                };
-            }
-
-            const mergeToBest = (srcResults) => {
+            const collectMovies = (srcResults) => {
                 if (!srcResults) return;
                 const flat = Array.isArray(srcResults) ? srcResults : [srcResults];
 
                 flat.forEach(item => {
                     if (!item || !item.title) return;
 
-                    // If we don't have a best movie yet, take the first one found
-                    if (!bestMovie) {
-                        bestMovie = { ...item, torrents: [...(item.torrents || [])] };
-                        return;
-                    }
+                    const key = `${item.title.toLowerCase()}|${item.year || ''}`;
 
-                    // Matching logic: Title and Year
-                    const isMatch = (bestMovie.title.toLowerCase() === item.title.toLowerCase()) ||
-                        (item.title.toLowerCase().includes(bestMovie.title.toLowerCase()) && (!bestMovie.year || !item.year || bestMovie.year === item.year));
-
-                    if (isMatch && item.torrents) {
-                        // Merge torrents/links into the best movie
-                        item.torrents.forEach(t => {
-                            if (!bestMovie.torrents.find(et => et.magnetLink === t.magnetLink)) {
-                                bestMovie.torrents.push(t);
-                            }
+                    if (!allMovies.has(key)) {
+                        allMovies.set(key, {
+                            title: item.title,
+                            year: item.year,
+                            poster: item.poster || item.posterLarge,
+                            rating: item.rating,
+                            torrents: [...(item.torrents || [])],
+                            source: item.source,
+                            synopsis: item.synopsis || item.overview || '',
+                            id: item.id,
+                            runtime: item.runtime,
+                            genres: item.genres
                         });
-                        if (!bestMovie.poster && item.poster) bestMovie.poster = item.poster;
+                    } else {
+                        // Merge torrents for duplicate movies
+                        const existing = allMovies.get(key);
+                        if (item.torrents) {
+                            item.torrents.forEach(t => {
+                                if (!existing.torrents.find(et => et.magnetLink === t.magnetLink)) {
+                                    existing.torrents.push(t);
+                                }
+                            });
+                        }
+                        // Update poster if better quality found
+                        if (item.posterLarge && !existing.poster) {
+                            existing.poster = item.posterLarge;
+                        }
+                        // Update rating from TMDB if available
+                        if (item.rating && !existing.rating) {
+                            existing.rating = item.rating;
+                        }
                     }
                 });
             };
 
-            // Merge all sources into the single "Best" movie
-            mergeToBest(ytsRes);
-            mergeToBest(Array.isArray(x1337Res) ? scraper1337x.groupByMovie(x1337Res) : []);
-            mergeToBest(torrentioRes);
-            mergeToBest(streamwideRes);
-            mergeToBest(telegramRes);
-            mergeToBest(eztvRes);
-            mergeToBest(Array.isArray(nyaaRes) ? nyaaRes : []);
+            // Collect all movies from all sources
+            collectMovies(tmdbMatches);
+            collectMovies(ytsRes);
+            collectMovies(Array.isArray(x1337Res) ? scraper1337x.groupByMovie(x1337Res) : []);
+            collectMovies(torrentioRes);
+            collectMovies(streamwideRes);
+            collectMovies(telegramRes);
+            collectMovies(eztvRes);
+            collectMovies(Array.isArray(nyaaRes) ? nyaaRes : []);
 
-            if (bestMovie) {
-                // Deduplicate and sort torrents for the single movie
-                if (bestMovie.torrents && bestMovie.torrents.length > 0) {
+            // Convert to array and sort by rating/seeds
+            results = Array.from(allMovies.values());
+
+            // Deduplicate and sort torrents for each movie
+            results.forEach(movie => {
+                if (movie.torrents && movie.torrents.length > 0) {
                     const uniqueTorrents = [];
                     const seenTorrents = new Set();
-                    bestMovie.torrents.forEach(t => {
+                    movie.torrents.forEach(t => {
                         const sig = `${t.quality}-${t.size}-${(t.magnetLink || t.url || '').substring(0, 50)}`;
                         if (!seenTorrents.has(sig)) {
                             uniqueTorrents.push(t);
                             seenTorrents.add(sig);
                         }
                     });
-                    bestMovie.torrents = uniqueTorrents.sort((a, b) => {
+                    movie.torrents = uniqueTorrents.sort((a, b) => {
                         // Priority: Telegram Bots first, then Seeds
                         if (a.isTelegramBot && !b.isTelegramBot) return -1;
                         if (!a.isTelegramBot && b.isTelegramBot) return 1;
                         return (b.seeds || 0) - (a.seeds || 0);
                     });
                 }
-                results = [bestMovie];
-            } else {
-                results = [];
-            }
+            });
+
+            // Sort movies by rating (descending)
+            results.sort((a, b) => {
+                const ratingA = parseFloat(a.rating) || 0;
+                const ratingB = parseFloat(b.rating) || 0;
+                return ratingB - ratingA;
+            });
         }
 
         if (results && results.length > 0) {
@@ -188,8 +196,14 @@ export async function handleSearch(bot, msg, query) {
         // Store results with user ID
         searchResults.set(`${userId}:results`, results);
 
-        // LASER FOCUS: Always send the single best match directly.
-        await sendMovieWithDownloads(bot, chatId, results[0], lang);
+        // Display all found movies in a list
+        if (results.length === 1) {
+            // If only one result, show it directly with downloads
+            await sendMovieWithDownloads(bot, chatId, results[0], lang, 0);
+        } else {
+            // If multiple results, show list for user to select
+            await sendMovieList(bot, chatId, results, query);
+        }
 
     } catch (error) {
         console.error('Search error:', error);
@@ -279,8 +293,11 @@ async function sendMovieWithDownloads(bot, chatId, movie, lang, movieIndex = 0) 
         keyboard.push([{ text: '🔍 جستجوی مستقیم در TorrentGalaxy', url: `https://torrentgalaxy.to/torrents.php?search=${searchQuery}` }]);
     }
 
-    // Add subtitle button
-    keyboard.push([{ text: '📝 زیرنویس فارسی', callback_data: `sub:${movieIndex}` }]);
+    // Add subtitle and learning buttons
+    keyboard.push([
+        { text: '📝 زیرنویس فارسی', callback_data: `sub:${movieIndex}` },
+        { text: '🎓 شروع یادگیری', callback_data: `learn_mode:${movieIndex}` }
+    ]);
     keyboard.push([{ text: '⭐ افزودن به علاقه‌مندی‌ها', callback_data: `fav:${movie.id}` }]);
 
     // Send with poster

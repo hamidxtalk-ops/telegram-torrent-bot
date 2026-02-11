@@ -1,0 +1,69 @@
+// webapp/app.js - Add precise search modal handlers
+
+const preciseSearchModal = document.getElementById('precise-search-modal');
+const preciseSearchBtn = document.getElementById('precise-search-btn');
+const preciseModalClose = document.getElementById('precise-modal-close');
+const preciseSearchSubmit = document.getElementById('precise-search-submit');
+const preciseMovieName = document.getElementById('precise-movie-name');
+const preciseMovieYear = document.getElementById('precise-movie-year');
+
+preciseSearchBtn?.addEventListener('click', () => {
+  preciseSearchModal.classList.remove('hidden');
+  preciseMovieName.value = '';
+  preciseMovieYear.value = '';
+  preciseMovieName.focus();
+});
+
+preciseModalClose?.addEventListener('click', () => {
+  preciseSearchModal.classList.add('hidden');
+});
+
+preciseSearchModal?.addEventListener('click', (e) => {
+  if (e.target === preciseSearchModal) {
+    preciseSearchModal.classList.add('hidden');
+  }
+});
+
+preciseSearchSubmit?.addEventListener('click', async () => {
+  const movieName = preciseMovieName.value.trim();
+  const movieYear = preciseMovieYear.value.trim();
+  
+  if (!movieName) {
+    alert('لطفاً نام فیلم را وارد کنید');
+    return;
+  }
+  
+  preciseSearchModal.classList.add('hidden');
+  
+  const query = movieYear ? `${movieName} ${movieYear}` : movieName;
+  
+  currentView = 'search';
+  showView('search');
+  searchResults.innerHTML = '<div class="loader"></div>';
+  
+  try {
+    const response = await fetch(`${API_BASE}/api/search/precise?name=${encodeURIComponent(movieName)}&year=${encodeURIComponent(movieYear)}`);
+    const data = await response.json();
+    
+    if (data.results && data.results.length > 0) {
+      displayResults(data.results);
+    } else {
+      searchResults.innerHTML = '<p class="no-results">🔍 فیلمی یافت نشد. لطفاً دوباره تلاش کنید.</p>';
+    }
+  } catch (error) {
+    console.error('Search error:', error);
+    searchResults.innerHTML = '<p class="error-message">❌ خطا در جستجو. لطفاً دوباره امتحان کنید.</p>';
+  }
+});
+
+preciseMovieName?.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    preciseSearchSubmit.click();
+  }
+});
+
+preciseMovieYear?.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    preciseSearchSubmit.click();
+  }
+});

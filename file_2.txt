@@ -1,0 +1,143 @@
+// bot.js - Add precise search API endpoint (add after /api/search endpoint)
+
+app.get('/api/search/precise', async (req, res) => {
+    try {
+        const movieName = req.query.name;
+        const movieYear = req.query.year;
+
+        if (!movieName) {
+            return res.status(400).json({ error: 'Movie name is required' });
+        }
+
+        console.log(`🎯 API precise search: "${movieName}" (${movieYear || 'no year'})`);
+
+        const scraperTelegram = (await import('./services/scraperTelegramChannels.js')).default;
+        const scraperStreamWide = (await import('./services/scraperStreamWide.js')).default;
+        const scraperTorrentio = (await import('./services/scraperTorrentio.js')).default;
+
+        const withTimeout = (promise, timeoutMs = 6000) => {
+            return Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeoutMs))
+            ]).catch(err => {
+                console.log(`⏱ Scraper timeout/error: ${err.message}`);
+                return [];
+            });
+        };
+
+        const tmdbResults = await withTimeout(tmdb.searchMovies(movieName), 4000);
+
+        if (!tmdbResults || tmdbResults.length === 0) {
+            return res.json({ results: [] });
+        }
+
+        let bestMatch;
+        if (movieYear) {
+            bestMatch = tmdbResults.find(m => m.year && m.year.toString() === movieYear);
+            if (!bestMatch) {
+                const yearMatches = tmdbResults.filter(m => 
+                    m.year && Math.abs(parseInt(m.year) - parseInt(movieYear)) <= 1
+                );
+                bestMatch = yearMatches[0] || tmdbResults[0];
+            }
+        } else {
+            bestMatch = tmdbResults[0];
+        }
+
+        const englishTitle = bestMatch.originalTitle || bestMatch.title;
+        const movieYearVal = bestMatch.year;
+
+        let imdbId = null;
+        try {
+            const details = await withTimeout(tmdb.getMovieDetails(bestMatch.id), 3000);
+            imdbId = details?.imdbId;
+        } catch (e) { }
+
+        console.log(`🎯 Exact match: ${englishTitle} (${movieYearVal || 'N/A'}) - IMDB: ${imdbId || 'N/A'}`);
+
+        const searchWithYear = movieYearVal ? `${englishTitle} ${movieYearVal}` : englishTitle;
+
+        let theMovie = {
+            id: bestMatch.id,
+            title: bestMatch.title,
+            originalTitle: englishTitle,
+            year: movieYearVal,
+            rating: bestMatch.rating?.toFixed(1),
+            poster: bestMatch.poster || null,
+            posterLarge: bestMatch.poster?.replace('w342', 'w500') || null,
+            overview: bestMatch.overview,
+            torrents: [],
+            source: 'TMDb',
+            imdbId
+        };
+
+        const [telegramRes, streamWideRes, ytsRes, torrentioRes, x1337Res] = await Promise.allSettled([
+            withTimeout(scraperTelegram.searchWithLinks(englishTitle, 5), 6000),
+            withTimeout(scraperStreamWide.searchWithLinks(englishTitle, 5), 6000),
+            withTimeout(yts.searchMovies(englishTitle, 3), 5000),
+            withTimeout(scraperTorrentio.searchWithLinks(imdbId || englishTitle, 10), 8000),
+            withTimeout(scraper1337x.searchWithMagnets(searchWithYear, 3), 6000)
+        ]);
+
+        const dubPatterns = ['دوبله', 'dubbed', 'farsi.dub', 'persian.dub', 'fa.dub', 'دوبله فارسی'];
+        const hardsubPatterns = ['زیرنویس چسبیده', 'hardsub', 'hs', 'hardcoded', 'زیرنویس'];
+
+        const detectDubSub = (torrent) => {
+            const text = `${torrent.title || ''} ${torrent.name || ''} ${torrent.quality || ''} ${torrent.label || ''}`.toLowerCase();
+            const isDubbed = dubPatterns.some(p => text.includes(p.toLowerCase()));
+            const hasHardSub = hardsubPatterns.some(p => text.includes(p.toLowerCase()));
+            return { isDubbed, hasHardSub };
+        };
+
+        const mergeTorrents = (sourceResults, sourceName) => {
+            if (!sourceResults || sourceResults.status !== 'fulfilled' || !sourceResults.value) return;
+
+            const items = Array.isArray(sourceResults.value) ? sourceResults.value : [sourceResults.value];
+            items.forEach(item => {
+                if (item.torrents && item.torrents.length > 0) {
+                    item.torrents.forEach(t => {
+                        const sig = `${t.quality || ''}-${t.size || ''}-${(t.magnetLink || t.url || '').substring(0, 40)}`;
+                        if (!theMovie.torrents.find(et => `${et.quality || ''}-${et.size || ''}-${(et.magnetLink || et.url || '').substring(0, 40)}` === sig)) {
+                            const { isDubbed, hasHardSub } = detectDubSub(t);
+
+                            let label = t.label || t.quality || sourceName;
+                            if (isDubbed) label = `🎙️ دوبله فارسی - ${label}`;
+                            if (hasHardSub) label = `📝 زیرنویس چسبیده - ${label}`;
+
+                            theMovie.torrents.push({
+                                ...t,
+                                source: t.source || sourceName,
+                                isDubbed,
+                                hasHardSub,
+                                label
+                            });
+                        }
+                    });
+                }
+            });
+        };
+
+        mergeTorrents(telegramRes, 'Telegram');
+        mergeTorrents(streamWideRes, 'StreamWide');
+        mergeTorrents(ytsRes, 'YTS');
+        mergeTorrents(torrentioRes, 'Torrentio');
+        mergeTorrents({ status: 'fulfilled', value: scraper1337x.groupByMovie(x1337Res.value || []) }, '1337x');
+
+        theMovie.torrents.sort((a, b) => {
+            if (a.isDubbed && !b.isDubbed) return -1;
+            if (!a.isDubbed && b.isDubbed) return 1;
+            if (a.hasHardSub && !b.hasHardSub) return -1;
+            if (!a.hasHardSub && b.hasHardSub) return 1;
+            if (a.isTelegramBot && !b.isTelegramBot) return -1;
+            if (!a.isTelegramBot && b.isTelegramBot) return 1;
+            return (b.seeds || 0) - (a.seeds || 0);
+        });
+
+        console.log(`✅ Precise search result: "${theMovie.title}" with ${theMovie.torrents.length} download links`);
+
+        res.json({ results: [theMovie] });
+    } catch (error) {
+        console.error('API precise search error:', error);
+        res.status(500).json({ error: 'Search failed', results: [] });
+    }
+});

@@ -83,7 +83,14 @@ const elements = {
     downloadsBackBtn: document.getElementById('downloads-back-btn'),
     toast: document.getElementById('toast'),
     navItems: document.querySelectorAll('.nav-item'),
-    quickBtns: document.querySelectorAll('.quick-btn')
+    quickBtns: document.querySelectorAll('.quick-btn'),
+    // Advanced Search Elements
+    advSearchModal: document.getElementById('advanced-search-modal'),
+    advSearchBtn: document.getElementById('advanced-search-btn'),
+    closeAdvModal: document.getElementById('close-advanced-modal'),
+    performAdvSearchBtn: document.getElementById('perform-advanced-search'),
+    advMovieTitle: document.getElementById('adv-movie-title'),
+    advMovieYear: document.getElementById('adv-movie-year')
 };
 
 // ===================================
@@ -211,7 +218,7 @@ async function apiRequest(endpoint, options = {}, retries = 2) {
     }
 }
 
-async function searchMovies(query) {
+async function searchMovies(query, year = null) {
     if (!query.trim()) {
         showToast('لطفاً نام فیلم را وارد کنید');
         return;
@@ -220,10 +227,16 @@ async function searchMovies(query) {
     state.isLoading = true;
     showLoadingSkeleton(elements.searchResults);
     showView('results');
-    elements.resultsTitle.textContent = `جستجو: ${query}`;
+
+    let titleText = `جستجو: ${query}`;
+    if (year) titleText += ` (${year})`;
+    elements.resultsTitle.textContent = titleText;
 
     try {
-        const data = await apiRequest(`/api/search?q=${encodeURIComponent(query)}`);
+        let url = `/api/search?q=${encodeURIComponent(query)}`;
+        if (year) url += `&year=${encodeURIComponent(year)}`;
+
+        const data = await apiRequest(url);
         state.searchResults = data.results || [];
 
         if (state.searchResults.length === 0) {
@@ -242,7 +255,7 @@ async function searchMovies(query) {
 async function searchFromDetail(title) {
     if (!title) return;
     elements.searchInput.value = title;
-    await searchMovies(title);
+    openSearchModal();
 }
 
 async function getTrending() {
@@ -1020,12 +1033,12 @@ function copyMagnetLink(magnetLink) {
 function setupEventListeners() {
     // Search
     elements.searchBtn.addEventListener('click', () => {
-        searchMovies(elements.searchInput.value);
+        openSearchModal();
     });
 
     elements.searchInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            searchMovies(elements.searchInput.value);
+            openSearchModal();
         }
     });
 
@@ -1119,6 +1132,9 @@ async function init() {
 
     // Setup events
     setupEventListeners();
+
+    // Init Search Modal
+    initSearchModal();
 
     // Load trending movies
     await getTrending();
@@ -1229,3 +1245,59 @@ window.handleTelegramLink = handleTelegramLink;
 window.searchSubtitles = searchSubtitles;
 window.showDownloadGuide = showDownloadGuide;
 window.closeModal = closeModal;
+window.openSearchModal = openSearchModal;
+
+// ===================================
+// Search Modal Logic
+// ===================================
+
+function openSearchModal() {
+    if (!elements.advSearchModal) return;
+
+    // Pre-fill with current search if any
+    if (elements.searchInput.value) {
+        elements.advMovieTitle.value = elements.searchInput.value;
+    }
+
+    elements.advSearchModal.classList.remove('hidden');
+    elements.advMovieTitle.focus();
+}
+
+function initSearchModal() {
+    if (!elements.advSearchModal) return;
+
+    elements.closeAdvModal.addEventListener('click', () => {
+        elements.advSearchModal.classList.add('hidden');
+    });
+
+    // Close on backdrop click
+    elements.advSearchModal.addEventListener('click', (e) => {
+        if (e.target === elements.advSearchModal) {
+            elements.advSearchModal.classList.add('hidden');
+        }
+    });
+
+    elements.performAdvSearchBtn.addEventListener('click', async () => {
+        const title = elements.advMovieTitle.value.trim();
+        const year = elements.advMovieYear.value.trim();
+
+        if (!title) {
+            showToast('لطفاً نام فیلم را وارد کنید');
+            return;
+        }
+
+        elements.advSearchModal.classList.add('hidden');
+        await searchMovies(title, year);
+    });
+
+    // Handle Enter key in modal
+    [elements.advMovieTitle, elements.advMovieYear].forEach(el => {
+        if (el) {
+            el.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    elements.performAdvSearchBtn.click();
+                }
+            });
+        }
+    });
+}

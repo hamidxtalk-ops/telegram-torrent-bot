@@ -12,8 +12,6 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
     <!-- WebTorrent for in-browser torrent downloads - with fallbacks -->
-    <script src="https://cdn.jsdelivr.net/npm/webtorrent@2.0.15/webtorrent.min.js" 
-            onerror="loadWebTorrentFallback()"></script>
     <script>
         function loadWebTorrentFallback() {
             var s = document.createElement('script');
@@ -24,6 +22,8 @@
             document.head.appendChild(s);
         }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@2.0.15/webtorrent.min.js" 
+            onerror="loadWebTorrentFallback()"></script>
     
     <!-- Persian Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -71,14 +71,37 @@
                     placeholder="جستجوی فیلم یا سریال..."
                     autocomplete="off"
                 >
-                <button id="search-btn" class="search-btn">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.35-4.35"></path>
-                    </svg>
-                </button>
+                <div class="search-actions">
+                    <button id="search-btn" class="search-btn">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </section>
+
+        <!-- Advanced Search Modal -->
+        <div id="advanced-search-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>🔍 جستجوی پیشرفته</h3>
+                    <button id="close-advanced-modal" class="modal-close">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="adv-movie-title">نام فیلم یا سریال:</label>
+                        <input type="text" id="adv-movie-title" class="form-input" placeholder="مثلاً: Interstellar">
+                    </div>
+                    <div class="form-group">
+                        <label for="adv-movie-year">سال ساخت:</label>
+                        <input type="number" id="adv-movie-year" class="form-input" placeholder="مثلاً: 2014" min="1900" max="2100">
+                    </div>
+                    <button id="perform-advanced-search" class="primary-btn">شروع جستجو</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Main Content -->
         <main class="main-content">

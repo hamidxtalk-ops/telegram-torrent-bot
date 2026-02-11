@@ -33,8 +33,9 @@ class DatabaseService {
             this.db = new this.SQL.Database();
         }
 
-        // Run schema
+        // Run schema and migrations
         this.initSchema();
+        this.migrate();
         this.save();
 
         return this;
@@ -58,6 +59,9 @@ class DatabaseService {
           search_count_today INTEGER DEFAULT 0,
           last_search_date TEXT,
           is_banned INTEGER DEFAULT 0,
+          persona TEXT DEFAULT 'Teacher',
+          coins INTEGER DEFAULT 0,
+          companion_data TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
@@ -88,8 +92,55 @@ class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
       CREATE INDEX IF NOT EXISTS idx_search_history_user_id ON search_history(user_id);
       CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON favorites(user_id);
+
+      -- Vocabulary table (Flashcards)
+      CREATE TABLE IF NOT EXISTS vocabulary (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          word TEXT NOT NULL,
+          definition TEXT,
+          context TEXT,
+          movie_source TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, word)
+      );
+      CREATE INDEX IF NOT EXISTS idx_vocabulary_user_id ON vocabulary(user_id);
+
+      -- Marketplace Listings (Phase 5)
+      CREATE TABLE IF NOT EXISTS marketplace_listings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          seller_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT,
+          price INTEGER DEFAULT 0,
+          content TEXT,
+          status TEXT DEFAULT 'active',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
     `;
         this.db.run(schema);
+    }
+
+    /**
+     * Run migrations (Phase updates)
+     */
+    migrate() {
+        try {
+            const columns = this.all(`PRAGMA table_info(users)`);
+
+            const hasPersona = columns.some(c => c.name === 'persona');
+            if (!hasPersona) {
+                this.run(`ALTER TABLE users ADD COLUMN persona TEXT DEFAULT 'Teacher'`);
+            }
+
+            const hasCoins = columns.some(c => c.name === 'coins');
+            if (!hasCoins) {
+                this.run(`ALTER TABLE users ADD COLUMN coins INTEGER DEFAULT 0`);
+                this.run(`ALTER TABLE users ADD COLUMN companion_data TEXT`);
+            }
+        } catch (e) {
+            console.error('Migration error:', e);
+        }
     }
 
     /**
@@ -164,13 +215,14 @@ class DatabaseService {
                 telegramUser.last_name || null,
                 telegramUser.id
             ]);
+
             return this.get('SELECT * FROM users WHERE telegram_id = ?', [telegramUser.id]);
         }
 
         // Create new user
         this.run(`
-      INSERT INTO users (telegram_id, username, first_name, last_name, language_code)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO users (telegram_id, username, first_name, last_name, language_code, coins)
+      VALUES (?, ?, ?, ?, ?, 0)
     `, [
             telegramUser.id,
             telegramUser.username || null,
@@ -245,6 +297,83 @@ class DatabaseService {
             'UPDATE users SET is_banned = ? WHERE telegram_id = ?',
             [banned ? 1 : 0, userId]
         );
+    }
+
+    /**
+     * Set user persona
+     */
+    setPersona(userId, persona) {
+        this.run(
+            'UPDATE users SET persona = ? WHERE telegram_id = ?',
+            [persona, userId]
+        );
+    }
+
+    /**
+     * Get user persona
+     */
+    getPersona(userId) {
+        const user = this.get(
+            'SELECT persona FROM users WHERE telegram_id = ?',
+            [userId]
+        );
+        return user?.persona || 'Teacher';
+    }
+
+    /**
+     * Set Companion Data
+     */
+    setCompanionData(userId, data) {
+        const json = JSON.stringify(data);
+        this.run(
+            'UPDATE users SET companion_data = ? WHERE telegram_id = ?',
+            [json, userId]
+        );
+    }
+
+    /**
+     * Get Companion Data
+     */
+    getCompanionData(userId) {
+        const user = this.get(
+            'SELECT companion_data FROM users WHERE telegram_id = ?',
+            [userId]
+        );
+        return user?.companion_data ? JSON.parse(user.companion_data) : null;
+    }
+
+    /**
+     * Update Coins
+     */
+    addCoins(userId, amount) {
+        this.run(
+            'UPDATE users SET coins = coins + ? WHERE telegram_id = ?',
+            [amount, userId]
+        );
+    }
+
+    getCoins(userId) {
+        const user = this.get('SELECT coins FROM users WHERE telegram_id = ?', [userId]);
+        return user?.coins || 0;
+    }
+
+    // ==================== MARKETPLACE ====================
+
+    createListing(sellerId, title, description, price, content) {
+        this.run(`
+            INSERT INTO marketplace_listings (seller_id, title, description, price, content)
+            VALUES (?, ?, ?, ?, ?)
+        `, [sellerId, title, description, price, JSON.stringify(content)]);
+    }
+
+    getListings() {
+        return this.all(`
+            SELECT m.*, u.first_name as seller_name 
+            FROM marketplace_listings m
+            JOIN users u ON m.seller_id = u.telegram_id
+            WHERE m.status = 'active'
+            ORDER BY m.created_at DESC
+        `);
     }
 
     // ==================== SEARCH HISTORY ====================
@@ -361,6 +490,47 @@ class DatabaseService {
         return this.all(`
       SELECT movie_id, movie_title, movie_year, imdb_id, poster_url, created_at
       FROM favorites
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+    `, [userId]);
+    }
+
+    // ==================== VOCABULARY (FLASHCARDS) ====================
+
+    /**
+     * Add word to vocabulary
+     */
+    addWord(userId, word, definition, context, movieSource) {
+        try {
+            this.run(`
+        INSERT OR REPLACE INTO vocabulary (user_id, word, definition, context, movie_source)
+        VALUES (?, ?, ?, ?, ?)
+      `, [userId, word, definition, context, movieSource]);
+            return true;
+        } catch (error) {
+            console.error('Add word error:', error.message);
+            return false;
+        }
+    }
+
+    /**
+     * Remove word from vocabulary
+     */
+    removeWord(userId, word) {
+        this.run(
+            'DELETE FROM vocabulary WHERE user_id = ? AND word = ?',
+            [userId, word]
+        );
+        return true;
+    }
+
+    /**
+     * Get user vocabulary
+     */
+    getVocabulary(userId) {
+        return this.all(`
+      SELECT word, definition, context, movie_source, created_at
+      FROM vocabulary
       WHERE user_id = ?
       ORDER BY created_at DESC
     `, [userId]);

@@ -17,35 +17,35 @@ const client = axios.create({
 });
 
 /**
- * Search for Persian subtitles by movie name
+ * Search for subtitles by movie name and language
  */
-export async function searchSubtitles(movieName, year = null) {
+export async function searchSubtitles(movieName, year = null, lang = 'FA') {
     try {
         let query = movieName;
         if (year) query += ` ${year}`;
 
-        console.log(`🔍 Searching subtitles for: ${query}`);
+        console.log(`🔍 Searching ${lang} subtitles for: ${query}`);
 
         const response = await client.get(SUBDL_API, {
             params: {
                 query: query,
-                languages: 'FA'  // Farsi/Persian
+                languages: lang  // FA for Persian, EN for English
             }
         });
 
         if (response.data && response.data.subtitles) {
             const subs = response.data.subtitles
-                .filter(sub => sub.lang === 'FA' || sub.language === 'Farsi')
+                .filter(sub => sub.lang === lang || sub.language?.toLowerCase() === (lang === 'FA' ? 'farsi' : 'english'))
                 .slice(0, 5)
                 .map(sub => ({
                     name: sub.release_name || sub.name,
-                    language: 'فارسی',
+                    language: lang === 'FA' ? 'فارسی' : 'English',
                     author: sub.author || 'ناشناس',
                     url: sub.url || `${SUBDL_DOWNLOAD}${sub.download_url || sub.subtitlePage}`,
                     downloads: sub.downloads || 0
                 }));
 
-            console.log(`✅ Found ${subs.length} Persian subtitles`);
+            console.log(`✅ Found ${subs.length} ${lang} subtitles`);
             return subs;
         }
 
