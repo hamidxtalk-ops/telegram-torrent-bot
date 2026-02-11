@@ -168,24 +168,31 @@ export async function recognizeMedia(fileBuffer, mimeType) {
         ACT AS A MOVIE RECOGNITION EXPERT (SUPER VISION MODE).
         Analyze this media (image/audio/video) with extreme precision to identify the movie or TV show.
         
-        STEP 1: PERFORM OCR
-        Scan for any text, subtitles, or watermarks. If text is found, cross-reference it with movie dialogues and titles.
+        CRITICAL INSTRUCTION:
+        If you recognize a **famous actor in a specific character costume** (e.g., Kit Harington as Jon Snow, Cillian Murphy as Tommy Shelby), this is a **99% CONFIDENT MATCH**. Do NOT be humble. If you see Jon Snow, the answer IS "Game of Thrones".
         
-        STEP 2: IDENTIFY VISUAL ANCHORS
-        Identify actors, unique costumes, props, character names, or specific cinematography styles.
+        STEP 1: IDENTIFY VISUAL ANCHORS (PRIORITY)
+        - **Characters:** Who is this? (Actor + Role).
+        - **Costume/Props:** Stark Armor, Valyrian Steel Sword, Peaky Blinders Hat, Lightsaber?
+        - **Setting:** Winterfell, The Shire, Death Star?
         
-        STEP 3: PROBABILITY ASSESSMENT
-        Based on the above, determine the exact movie/show.
+        STEP 2: PERFORM OCR (SECONDARY)
+        Scan for subtitles or watermarks to confirm.
+        
+        STEP 3: DECISION
+        - If you see a main character -> **CONFIDENCE 99%**.
+        - If you see a famous scene -> **CONFIDENCE 95%**.
+        - If you only see generic actors -> Lower confidence.
         
         JSON OUTPUT REQUIREMENT (MANDATORY):
         - If confidence > 80%, return:
         {
             "found": true,
             "title": "Exact Title",
-            "year": "Year",
-            "confidence": 0.XX,
-            "reasoning": "Identify why (e.g., 'OCR detected subtitle X', 'Visual match for Actor Y in costume Z')",
-            "actors": ["Actor 1", "Actor 2"]
+            "year": "Year (Start Year for TV Shows)",
+            "confidence": 0.99,
+            "reasoning": "Explicitly state: 'Identified Kit Harington as Jon Snow in Game of Thrones'",
+            "actors": ["Actor Name"]
         }
         
         - If NOT confident, return:
