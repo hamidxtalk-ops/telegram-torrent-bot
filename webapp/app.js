@@ -1493,9 +1493,12 @@ document.getElementById('camera-input').addEventListener('change', async functio
             const mimeType = file.type;
 
             try {
-                const response = await apiRequest('/api/recognize', 'POST', {
-                    image: base64Data,
-                    mimeType: mimeType
+                const response = await apiRequest('/api/recognize', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        image: base64Data,
+                        mimeType: mimeType
+                    })
                 });
 
                 if (response && response.found) {
