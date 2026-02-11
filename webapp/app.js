@@ -90,7 +90,15 @@ const elements = {
     closeAdvModal: document.getElementById('close-advanced-modal'),
     performAdvSearchBtn: document.getElementById('perform-advanced-search'),
     advMovieTitle: document.getElementById('adv-movie-title'),
-    advMovieYear: document.getElementById('adv-movie-year')
+    advMovieYear: document.getElementById('adv-movie-year'),
+    // Learning Elements
+    learningView: document.getElementById('learning-view'),
+    teacherName: document.getElementById('teacher-name'),
+    teacherDesc: document.getElementById('teacher-desc'),
+    teacherAvatar: document.getElementById('teacher-avatar'),
+    vocabCount: document.getElementById('vocab-count'),
+    xpPoints: document.getElementById('xp-points'),
+    changeTeacherBtn: document.getElementById('change-teacher-btn')
 };
 
 // ===================================
@@ -1301,3 +1309,115 @@ function initSearchModal() {
         }
     });
 }
+
+// ===================================
+// Learning Features
+// ===================================
+
+async function loadLearningData() {
+    state.isLoading = true;
+    updateLoading(true);
+
+    try {
+        const userId = tg?.initDataUnsafe?.user?.id || 123456; // Fallback for dev
+
+        // Parallel fetching
+        const [personaRes, vocabRes, companionRes] = await Promise.all([
+            fetch(`${API_BASE}/api/personas?userId=${userId}`).then(r => r.json()),
+            fetch(`${API_BASE}/api/vocabulary?userId=${userId}`).then(r => r.json()),
+            fetch(`${API_BASE}/api/companion/status?userId=${userId}`).then(r => r.json())
+        ]);
+
+        // Update UI
+        if (personaRes.current) {
+            const current = personaRes.personas.find(p => p.id === personaRes.current) || personaRes.personas[0];
+            elements.teacherName.textContent = current.name;
+            elements.teacherDesc.textContent = current.desc;
+            elements.teacherAvatar.textContent = current.emoji;
+        }
+
+        if (vocabRes.words) {
+            elements.vocabCount.textContent = vocabRes.words.length;
+        }
+
+        if (companionRes.companion) {
+            elements.xpPoints.textContent = companionRes.companion.xp || 0;
+        }
+
+    } catch (error) {
+        console.error('Failed to load learning data:', error);
+        showToast('خطا در دریافت اطلاعات یادگیری');
+    } finally {
+        state.isLoading = false;
+        updateLoading(false);
+    }
+}
+
+// Handle Tab Switching
+function switchTab(viewId) {
+    // Update Active State
+    elements.navItems.forEach(item => {
+        if (item.dataset.view === viewId) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+
+    // Switch View
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+
+    if (viewId === 'home') elements.homeView.classList.add('active');
+    if (viewId === 'search') elements.resultsView.classList.add('active');
+    if (viewId === 'downloads') elements.downloadsView.classList.add('active');
+    if (viewId === 'help') elements.helpView.classList.add('active');
+    if (viewId === 'learning') {
+        elements.learningView.classList.add('active');
+        loadLearningData();
+    }
+
+    state.currentView = viewId;
+}
+
+// Placeholder functions for buttons
+function openRoleplay() {
+    tg.close();
+    tg.sendData(JSON.stringify({ action: 'roleplay' }));
+}
+
+function openVocabulary() {
+    tg.close();
+    tg.sendData(JSON.stringify({ action: 'vocabulary' }));
+}
+
+function openBattle() {
+    tg.close();
+    tg.sendData(JSON.stringify({ action: 'battle' }));
+}
+
+function openCompanion() {
+    tg.close();
+    tg.sendData(JSON.stringify({ action: 'companion' }));
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    initTelegram();
+
+    // Add event listeners to nav items
+    elements.navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            const view = e.currentTarget.dataset.view;
+            switchTab(view);
+        });
+    });
+
+    // Check URL params for deep linking
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('start_app') === 'learning') {
+        switchTab('learning');
+    }
+
+    // Load initial data
+    loadTrending();
+});

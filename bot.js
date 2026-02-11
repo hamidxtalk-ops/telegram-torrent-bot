@@ -664,6 +664,75 @@ app.get('/api/download-guide', (req, res) => {
     });
 });
 
+// ==================== LEARNING API ENDPOINTS ====================
+
+// Personas List
+const PERSONAS = [
+    { id: 'Teacher', name: '👨‍🏫 Teacher', desc: 'Formal & Educational', emoji: '👨‍🏫' },
+    { id: 'Jack Sparrow', name: '🏴‍☠️ Jack Sparrow', desc: 'Pirate Slang & Wit', emoji: '🏴‍☠️' },
+    { id: 'Yoda', name: '👽 Yoda', desc: 'Wisdom & Odd Grammar', emoji: '👽' },
+    { id: 'Batman', name: '🦇 Batman', desc: 'Dark, Gritty & Direct', emoji: '🦇' },
+    { id: 'Sherlock', name: '🔍 Sherlock', desc: 'Analytical & Sophisticated', emoji: '🔍' },
+    { id: 'Barbie', name: '💅 Barbie', desc: 'Cheerful & Positive', emoji: '💅' }
+];
+
+app.get('/api/personas', (req, res) => {
+    const userId = req.query.userId; // In a real app, use session/auth
+    let currentPersona = 'Teacher';
+
+    if (userId) {
+        currentPersona = db.getPersona(userId);
+    }
+
+    res.json({
+        personas: PERSONAS,
+        current: currentPersona
+    });
+});
+
+app.post('/api/persona/set', (req, res) => {
+    const { userId, persona } = req.body;
+    if (!userId || !persona) return res.status(400).json({ error: 'Missing data' });
+
+    db.setPersona(userId, persona);
+    res.json({ success: true, persona });
+});
+
+// Vocabulary List
+app.get('/api/vocabulary', (req, res) => {
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ error: 'Missing userId' });
+
+    const vocab = db.getVocabulary(userId);
+    res.json({ words: vocab });
+});
+
+// Roleplay Scenarios
+app.get('/api/roleplay/scenarios', (req, res) => {
+    const scenarios = [
+        { id: 'coffee', name: '☕ Ordering Coffee', desc: 'Practice ordering in a cafe', difficulty: 'Easy' },
+        { id: 'interview', name: '👔 Job Interview', desc: 'Answer professional questions', difficulty: 'Hard' },
+        { id: 'direction', name: '🗺️ Asking Directions', desc: 'Navigate a new city', difficulty: 'Medium' },
+        { id: 'shopping', name: '🛍️ Shopping', desc: 'Buying clothes and bargaining', difficulty: 'Medium' }
+    ];
+    res.json({ scenarios });
+});
+
+// Companion Status
+app.get('/api/companion/status', (req, res) => {
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ error: 'Missing userId' });
+
+    const data = db.getCompanionData(userId) || {
+        name: 'AI Friend',
+        mood: 'Neutral',
+        level: 1,
+        xp: 0
+    };
+
+    res.json({ companion: data });
+});
+
 // Start Express server
 app.listen(PORT, () => {
     console.log(`🌐 Health check server running on port ${PORT}`);
