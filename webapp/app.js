@@ -1474,8 +1474,15 @@ document.getElementById('camera-input').addEventListener('change', async functio
 
                 if (response && response.found) {
                     showToast(`✅ فیلم شناسایی شد: ${response.title}`);
-                    // Perform search to get full movie details
-                    performSearch(response.title);
+
+                    // Perform search with year to be precise
+                    await searchMovies(response.title, response.year);
+
+                    // Auto-open the first result if available
+                    if (state.searchResults && state.searchResults.length > 0) {
+                        const firstMatch = state.searchResults[0];
+                        getMovieDetails(firstMatch.id);
+                    }
                 } else {
                     hideLoadingScreen();
                     showToast('❌ متاسفانه فیلمی شناسایی نشد.');
