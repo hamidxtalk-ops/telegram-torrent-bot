@@ -1419,6 +1419,32 @@ async function loadLearningData() {
     }
 }
 
+function showLoadingScreen(message = 'لطفاً صبر کنید...') {
+    let loader = document.getElementById('loading-overlay');
+    if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'loading-overlay';
+        loader.className = 'loading-overlay'; // Ensure this class exists in CSS or inline styles
+        loader.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:white;font-family:inherit;';
+        loader.innerHTML = `
+            <div class="spinner" style="border: 4px solid rgba(255,255,255,0.3);border-radius: 50%;border-top: 4px solid #fff;width: 40px;height: 40px;animation: spin 1s linear infinite;"></div>
+            <p id="loading-text" style="margin-top:15px;font-size:16px;">${message}</p>
+            <style>@keyframes spin {0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);}}</style>
+        `;
+        document.body.appendChild(loader);
+    } else {
+        document.getElementById('loading-text').textContent = message;
+        loader.style.display = 'flex';
+    }
+}
+
+function hideLoadingScreen() {
+    const loader = document.getElementById('loading-overlay');
+    if (loader) {
+        loader.style.display = 'none';
+    }
+}
+
 // Handle Tab Switching
 function switchTab(viewId) {
     // Update Active State
