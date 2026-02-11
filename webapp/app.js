@@ -502,18 +502,20 @@ function saveToVocab(text, source) {
 }
 
 function renderMovieDetail(movie) {
-    elements.moviePoster.style.backgroundImage = `url('${movie.posterLarge || movie.poster || getPlaceholderPoster()}')`;
-    elements.movieTitle.textContent = movie.title;
-    elements.movieYear.textContent = movie.year ? `📅 ${movie.year}` : '';
-    elements.movieRating.textContent = movie.rating ? `⭐ ${movie.rating}` : '';
-    elements.movieRuntime.textContent = movie.runtime ? `⏱ ${movie.runtime} دقیقه` : '';
-    elements.movieSynopsis.textContent = movie.synopsis || movie.overview || 'توضیحات موجود نیست';
+    if (elements.moviePoster) elements.moviePoster.style.backgroundImage = `url('${movie.posterLarge || movie.poster || getPlaceholderPoster()}')`;
+    if (elements.movieTitle) elements.movieTitle.textContent = movie.title;
+    if (elements.movieYear) elements.movieYear.textContent = movie.year ? `📅 ${movie.year}` : '';
+    if (elements.movieRating) elements.movieRating.textContent = movie.rating ? `⭐ ${movie.rating}` : '';
+    if (elements.movieRuntime) elements.movieRuntime.textContent = movie.runtime ? `⏱ ${movie.runtime} دقیقه` : '';
+    if (elements.movieSynopsis) elements.movieSynopsis.textContent = movie.synopsis || movie.overview || 'توضیحات موجود نیست';
 
     // Genres
     const genres = movie.genres || [];
-    elements.movieGenres.innerHTML = genres.map(g =>
-        `<span class="genre-tag">${typeof g === 'string' ? g : g.name || g}</span>`
-    ).join('');
+    if (elements.movieGenres) {
+        elements.movieGenres.innerHTML = genres.map(g =>
+            `<span class="genre-tag">${typeof g === 'string' ? g : g.name || g}</span>`
+        ).join('');
+    }
 
     // Download links with type badges
     const torrents = movie.torrents;
@@ -1516,12 +1518,20 @@ document.getElementById('camera-input').addEventListener('change', async functio
 
                 console.log('✅ Server Response:', JSON.stringify(response, null, 2));
 
+                if (response.error) {
+                    if (response.rawError && response.rawError.includes('429')) {
+                        showToast('⚠️ سهمیه هوش مصنوعی پر شده. لطفاً ۵ دقیقه صبر کنید.');
+                        return;
+                    }
+                    showToast(`❌ ${response.error}`);
+                    return;
+                }
 
                 if (response && response.found) {
                     showToast(`✅ فیلم شناسایی شد: ${response.title}`);
-
                     // Perform search with year to be precise
                     await searchMovies(response.title, response.year);
+
 
                     // Auto-open the first result if available
                     if (state.searchResults && state.searchResults.length > 0) {

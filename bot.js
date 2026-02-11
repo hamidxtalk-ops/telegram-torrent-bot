@@ -84,16 +84,27 @@ app.post('/api/recognize', express.json({ limit: '50mb' }), async (req, res) => 
         if (!image) return res.status(400).json({ error: 'Image data missing' });
 
         console.log('👁️ Processing image for recognition (Endpoint v2)...');
+        console.log(`📏 Image Size: ${Math.round(image.length / 1024)} KB`);
+
         const buffer = Buffer.from(image, 'base64');
+        console.log('🔄 Image converted to buffer. Calling AI Service...');
+
         // Import AI service dynamically to avoid circular dependencies if any
         const ai = await import('./services/aiLearning.js');
         const result = await ai.recognizeMedia(buffer, mimeType || 'image/jpeg');
 
-        console.log('✅ Recognition Result Object:', JSON.stringify(result, null, 2));
+        console.log('✅ AI Service Response:', JSON.stringify(result, null, 2));
+
+        if (result.error) {
+            console.error('❌ Recognition Failed:', result.error);
+        } else {
+            console.log(`🎉 Match Found: ${result.title} (${result.year})`);
+        }
+
         res.json(result);
     } catch (error) {
-        console.error('API Recognition Error:', error);
-        res.status(500).json({ error: 'Failed to process image' });
+        console.error('🔥 API Recognition CRITICAL Error:', error);
+        res.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
 });
 
