@@ -886,7 +886,7 @@ async function main() {
         // Mini App URL
         const WEBAPP_URL = process.env.RENDER_EXTERNAL_URL
             ? `${process.env.RENDER_EXTERNAL_URL}/webapp/`
-            : 'https://telegram-torrent-bot-jqsd.onrender.com/webapp/';
+            : 'https://telegram-torrent-bot-hiy7.onrender.com/webapp/';
 
         // Redirect text messages to Mini App (no direct search)
         bot.on('message', async (msg) => {

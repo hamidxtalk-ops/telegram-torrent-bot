@@ -9,7 +9,7 @@ import { t, getLanguageKeyboard } from '../utils/languages.js';
 // Get Mini App URL from environment
 const WEBAPP_URL = process.env.RENDER_EXTERNAL_URL
     ? `${process.env.RENDER_EXTERNAL_URL}/webapp/`
-    : 'https://telegram-torrent-bot-jqsd.onrender.com/webapp/';
+    : 'https://telegram-torrent-bot-hiy7.onrender.com/webapp/';
 
 /**
  * Handle /start command
