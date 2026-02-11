@@ -458,8 +458,8 @@ async function loadMovieLearning(movie) {
                     ${data.moments.map(moment => `
                         <div class="learning-card">
                             <div class="learning-icon">💡</div>
-                            <p class="learning-text">"${moment}"</p>
-                            <button class="action-btn outline small" onclick="saveToVocab('${escapeHtml(moment)}', '${escapeHtml(movie.title)}')">
+                            <p class="learning-text">"${escapeHtml(moment)}"</p>
+                            <button class="action-btn outline small" onclick="saveToVocab('${escapeForJs(moment)}', '${escapeForJs(movie.title)}')">
                                 ذخیره در لغات
                             </button>
                         </div>
@@ -500,7 +500,7 @@ function renderMovieDetail(movie) {
     // Action buttons (Subtitle + Download Guide)
     let actionsHTML = `
         <div class="movie-actions">
-            <button class="action-btn subtitle-btn" onclick="searchSubtitles('${escapeHtml(movie.title)}', '${movie.year || ''}')">
+            <button class="action-btn subtitle-btn" onclick="searchSubtitles('${escapeForJs(movie.title)}', '${movie.year || ''}')">
                 📝 زیرنویس فارسی
             </button>
             <button class="action-btn guide-btn" onclick="showDownloadGuide()">
@@ -524,7 +524,7 @@ function renderMovieDetail(movie) {
                 <p style="font-size:1.5rem;margin-bottom:10px;">🔍</p>
                 <p style="color:var(--text-primary);font-weight:600;">لینک مستقیمی یافت نشد</p>
                 <p style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;">احتمالاً هنوز در دیتابیس ما ثبت نشده</p>
-                <button class="action-btn" style="margin-top:16px;width:100%;background:var(--accent-gradient);" onclick="searchFromDetail('${escapeHtml(movie.title)}')">
+                <button class="action-btn" style="margin-top:16px;width:100%;background:var(--accent-gradient);" onclick="searchFromDetail('${escapeForJs(movie.title)}')">
                     🚀 جستجوی عمیق‌تر در تمام منابع
                 </button>
             </div>
@@ -555,7 +555,7 @@ function renderMovieDetail(movie) {
 
             return `
                 <button class="download-item ${typeClass}" 
-                        onclick="showDownloadModal('${escapedLink}', '${escapedQuality}', '${escapedSource}')"
+                        onclick="showDownloadModal('${escapeForJs(link)}', '${escapeForJs(torrent.quality || 'کیفیت نامشخص')}', '${escapeForJs(torrent.source || '')}')"
                         data-link="${escapedLink}">
                     <div class="download-item-icon">${icon}</div>
                     <div class="download-item-details">
@@ -717,9 +717,15 @@ function downloadFile(index) {
 // ===================================
 
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function escapeForJs(text) {
+    if (!text) return '';
+    return text.toString().replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
 
 function getPlaceholderPoster() {
