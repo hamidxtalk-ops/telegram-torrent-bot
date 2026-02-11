@@ -94,6 +94,24 @@ app.get('/api/movie/:id/learning', async (req, res) => {
     }
 });
 
+// Media Recognition API
+app.post('/api/recognize', express.json({ limit: '50mb' }), async (req, res) => {
+    try {
+        const { image, mimeType } = req.body;
+        if (!image) return res.status(400).json({ error: 'Image data missing' });
+
+        const buffer = Buffer.from(image, 'base64');
+        // Import AI service dynamically to avoid circular dependencies if any
+        const ai = await import('./services/aiLearning.js');
+        const result = await ai.recognizeMedia(buffer, mimeType || 'image/jpeg');
+
+        res.json(result);
+    } catch (error) {
+        console.error('API Recognition Error:', error);
+        res.status(500).json({ error: 'Failed to process image' });
+    }
+});
+
 // Search API - LASER FOCUS: Return ONLY ONE best-matching movie
 app.get('/api/search', async (req, res) => {
     try {

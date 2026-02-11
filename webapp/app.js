@@ -1568,5 +1568,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Load initial data
-    loadTrending();
+    getTrending();
 });
