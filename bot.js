@@ -1214,22 +1214,44 @@ async function main() {
                 await bot.deleteMessage(chatId, processingMsg.message_id);
 
                 if (result.found && result.title) {
+                    // Stage 3: TMDB Verification & Poster fetching
+                    let tmdbResult = null;
+                    try {
+                        const searchResults = await tmdb.searchMovies(result.title, result.year);
+                        if (searchResults && searchResults.length > 0) {
+                            tmdbResult = searchResults[0];
+                        }
+                    } catch (e) { console.error('TMDB Verify Error:', e); }
+
                     const confidence = Math.round(result.confidence * 100);
-                    let replyText = `🎬 *فیلم شناسایی شد!*\n\n` +
-                        `🎥 *${result.title}* (${result.year || 'Unknown'})\n` +
-                        `📊 دقت: %${confidence}\n` +
-                        `🧠 دلیل: ${result.reasoning || 'Visual match'}\n\n` +
-                        `می‌خواهید چکار کنید؟`;
+                    let replyText = `🎬 *فیلم با دقت بالا شناسایی شد!*\n\n` +
+                        `🎥 *${tmdbResult ? tmdbResult.title : result.title}* (${tmdbResult ? tmdbResult.year : (result.year || 'Unknown')})\n` +
+                        `📊 دقت تشخیص: %${confidence}\n` +
+                        `🧠 تحلیل: ${result.reasoning || 'Visual match'}\n\n`;
+
+                    if (result.actors && result.actors.length > 0) {
+                        replyText += `👥 بازیگران شناسایی شده: ${result.actors.join('، ')}\n\n`;
+                    }
+
+                    replyText += `می‌خواهید چکار کنید؟`;
 
                     const keyboard = [
-                        [{ text: '🔍 جستجوی فیلم', callback_data: 'search:' + result.title }],
-                        [{ text: '🎓 شروع یادگیری (MovieLingo)', callback_data: 'prompt_learn:' + result.title }]
+                        [{ text: '🔍 جستجوی لینک دانلود', callback_data: 'search:' + (tmdbResult ? tmdbResult.originalTitle : result.title) }],
+                        [{ text: '🎓 شروع یادگیری (MovieLingo)', callback_data: 'prompt_learn:' + (tmdbResult ? tmdbResult.title : result.title) }]
                     ];
 
-                    await bot.sendMessage(chatId, replyText, {
-                        parse_mode: 'Markdown',
-                        reply_markup: { inline_keyboard: keyboard }
-                    });
+                    if (tmdbResult && tmdbResult.poster) {
+                        await bot.sendPhoto(chatId, tmdbResult.poster, {
+                            caption: replyText,
+                            parse_mode: 'Markdown',
+                            reply_markup: { inline_keyboard: keyboard }
+                        });
+                    } else {
+                        await bot.sendMessage(chatId, replyText, {
+                            parse_mode: 'Markdown',
+                            reply_markup: { inline_keyboard: keyboard }
+                        });
+                    }
                 } else {
                     await bot.sendMessage(chatId, '⚠️ متاسفانه نتوانستم فیلم را تشخیص دهم.\nلطفاً تصویر یا کلیپ واضح‌تری بفرستید.');
                 }

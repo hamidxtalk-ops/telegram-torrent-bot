@@ -165,24 +165,36 @@ export async function recognizeMedia(fileBuffer, mimeType) {
         const base64Data = fileBuffer.toString('base64');
 
         const prompt = `
-        Analyze this media (image/audio/video) and identify the movie or TV show it is from.
+        ACT AS A MOVIE RECOGNITION EXPERT (SUPER VISION MODE).
+        Analyze this media (image/audio/video) with extreme precision to identify the movie or TV show.
         
-        If you are at least 80% confident, return a JSON object like this:
+        STEP 1: PERFORM OCR
+        Scan for any text, subtitles, or watermarks. If text is found, cross-reference it with movie dialogues and titles.
+        
+        STEP 2: IDENTIFY VISUAL ANCHORS
+        Identify actors, unique costumes, props, character names, or specific cinematography styles.
+        
+        STEP 3: PROBABILITY ASSESSMENT
+        Based on the above, determine the exact movie/show.
+        
+        JSON OUTPUT REQUIREMENT (MANDATORY):
+        - If confidence > 80%, return:
         {
             "found": true,
-            "title": "Exact Movie/Show Title",
+            "title": "Exact Title",
             "year": "Year",
-            "confidence": 0.95,
-            "reasoning": "Visual match with character X / Audio match with dialogue Y"
-        }
-
-        If you are NOT confident, return:
-        {
-            "found": false,
-            "reason": "Could not identify with high confidence"
+            "confidence": 0.XX,
+            "reasoning": "Identify why (e.g., 'OCR detected subtitle X', 'Visual match for Actor Y in costume Z')",
+            "actors": ["Actor 1", "Actor 2"]
         }
         
-        RETURN ONLY JSON. DO NOT USE MARKDOWN BLOCK.
+        - If NOT confident, return:
+        {
+            "found": false,
+            "reason": "Explain what you saw but why it wasn't enough for identification"
+        }
+        
+        RETURN ONLY RAW JSON. NO MARKDOWN.
         `;
 
         const response = await axios.post(GEMINI_ENDPOINT, {
