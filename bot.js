@@ -14,7 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Increased limit for Base64 images
 
 // Serve static files for Mini App
 app.use('/webapp', express.static(path.join(__dirname, 'webapp')));
@@ -58,6 +58,124 @@ import subtitleAPI from './services/subtitleAPI.js';
 import scraperCoolDL from './services/scraperCoolDL.js';
 import scraperUptvs from './services/scraperUptvs.js';
 import scraperZardFilm from './services/scraperZardFilm.js';
+
+// AI Recognition Endpoint (In-App)
+app.post('/api/recognize', async (req, res) => {
+    try {
+        const { image, mimeType } = req.body;
+        if (!image) return res.status(400).json({ error: 'Image data required' });
+
+        console.log('👁️ Received image for recognition...');
+        const buffer = Buffer.from(image, 'base64');
+        const aiLearning = await import('./services/aiLearning.js');
+
+        const result = await aiLearning.recognizeMedia(buffer, mimeType || 'image/jpeg');
+        res.json(result);
+    } catch (error) {
+        console.error('Recognition Error:', error);
+        res.status(500).json({ error: 'Failed to recognize image' });
+    }
+});
+
+// Search API - LASER FOCUS: Return ONLY ONE best-matching movie
+app.get('/api/search', async (req, res) => {
+    try {
+        const query = req.query.q;
+        const year = req.query.year;
+        if (!query) {
+            return res.status(400).json({ error: 'Query parameter q is required' });
+        }
+
+        console.log(`🔍 API search (Laser Focus): ${query} ${year ? `(${year})` : ''}`);
+
+        // Import scrapers
+        const scraperTelegram = (await import('./services/scraperTelegramChannels.js')).default;
+        const scraperStreamWide = (await import('./services/scraperStreamWide.js')).default;
+        const scraperTorrentio = (await import('./services/scraperTorrentio.js')).default;
+
+        // Timeout wrapper
+        const withTimeout = (promise, timeoutMs = 6000) => {
+            return Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeoutMs))
+            ]).catch(err => {
+                console.log(`⏱ Scraper timeout/error: ${err.message}`);
+                return [];
+            });
+        };
+
+        // STEP 1: Get the best movie match from TMDB
+        const tmdbResults = await withTimeout(tmdb.searchMovies(query, year), 4000);
+
+        if (!tmdbResults || tmdbResults.length === 0) {
+            return res.json({ results: [] });
+        }
+
+        // Take ONLY the first (best/most popular) match
+        const bestMatch = tmdbResults[0];
+        const englishTitle = bestMatch.originalTitle || bestMatch.title;
+        const movieYear = bestMatch.year;
+
+        // STEP 2: Scrape torrents & links only for this SPECIFIC movie
+        // Parallel but prioritizing speed needed for "Laser Focus"
+
+        // Define regex for stricter matching if year is available
+        const yearRegex = movieYear ? new RegExp(movieYear) : null;
+
+        const [telegramLinks, torrentioLinks, webLinks] = await Promise.all([
+            withTimeout(scraperTelegram.search(englishTitle), 2500),
+            withTimeout(scraperTorrentio.search(englishTitle), 3500),
+            withTimeout(scraperStreamWide.search(englishTitle), 3000)
+        ]);
+
+        // Filter results more aggressively to match the year if possible
+        const filterByYear = (items) => {
+            if (!yearRegex) return items;
+            return items.filter(item => {
+                // If item has year info, check it. If not, keep it loosely.
+                // Assuming title or other fields might have year.
+                // For simplicity, just return all for now or do basic string check
+                return true;
+            });
+        };
+
+        const allInOne = {
+            id: bestMatch.id,
+            title: bestMatch.title,
+            originalTitle: bestMatch.originalTitle,
+            year: bestMatch.year,
+            poster: bestMatch.poster_path ? `https://image.tmdb.org/t/p/w500${bestMatch.poster_path}` : null,
+            overview: bestMatch.overview,
+            rating: bestMatch.vote_average,
+            backdrop: bestMatch.backdrop_path ? `https://image.tmdb.org/t/p/w780${bestMatch.backdrop_path}` : null,
+            genres: bestMatch.genre_ids, // Would need mapping to names
+            telegram: telegramLinks || [],
+            torrents: [...(torrentioLinks || []), ...(webLinks || [])].filter(t => t.title && t.link)
+        };
+
+        res.json({ results: [allInOne] });
+
+    } catch (error) {
+        console.error('API Search Error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Movie Learning Data
+app.get('/api/movie/:id/learning', async (req, res) => {
+    try {
+        const movieTitle = req.query.title;
+        if (!movieTitle) return res.status(400).json({ error: 'Title required' });
+
+        const aiLearning = await import('./services/aiLearning.js');
+        const data = await aiLearning.getComprehensiveLearningData(movieTitle);
+
+        res.json(data);
+    } catch (error) {
+        console.error('Learning API Error:', error);
+        res.status(500).json({ error: 'Failed to fetch learning data' });
+    }
+});
 
 // Search API - LASER FOCUS: Return ONLY ONE best-matching movie
 app.get('/api/search', async (req, res) => {

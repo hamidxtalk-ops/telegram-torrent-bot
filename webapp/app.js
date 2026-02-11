@@ -1446,14 +1446,55 @@ function switchTab(viewId) {
 }
 
 function openMediaRecognition() {
-    // Open a toast and close the app to allow the user to send a file to the bot
-    // Since Mini App cannot easily access camera/gallery for direct uploads to a bot API without complex logic
-    // we guide the user to the bot's intelligent interaction.
-    showToast('🤖 لطفاً یک عکس یا ویدیو از فیلم بفرستید تا شناسایی شود');
-    setTimeout(() => {
-        if (tg) tg.close();
-    }, 2000);
+    // Trigger the hidden file input
+    document.getElementById('camera-input').click();
 }
+
+// Handle Camera/File Selection
+document.getElementById('camera-input').addEventListener('change', async function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Show loading state
+    showLoadingScreen('🤖 در حال تماشای تصویر...');
+
+    try {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+
+        reader.onloadend = async function () {
+            const base64Data = reader.result.split(',')[1];
+            const mimeType = file.type;
+
+            try {
+                const response = await apiRequest('/api/recognize', 'POST', {
+                    image: base64Data,
+                    mimeType: mimeType
+                });
+
+                if (response && response.found) {
+                    showToast(`✅ فیلم شناسایی شد: ${response.title}`);
+                    // Perform search to get full movie details
+                    performSearch(response.title);
+                } else {
+                    hideLoadingScreen();
+                    showToast('❌ متاسفانه فیلمی شناسایی نشد.');
+                }
+            } catch (err) {
+                console.error('Recognition Error:', err);
+                hideLoadingScreen();
+                showToast('❌ خطا در ارتباط با هوش مصنوعی. حجم عکس ممکن است خیلی زیاد باشد.');
+            }
+        };
+    } catch (error) {
+        console.error('File Error:', error);
+        hideLoadingScreen();
+        showToast('❌ خطا در پردازش تصویر');
+    }
+
+    // Reset input
+    e.target.value = '';
+});
 
 function openRoleplay() {
     tg.close();
